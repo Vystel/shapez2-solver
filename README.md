@@ -1,6 +1,7 @@
 # Shapez 2 Solver
 
-This web-based tool helps you find the most efficient sequence of operations to construct a **Target Shape** in the game Shapez 2, using a given set of **Starting Shapes** and **Enabled Operations**.
+This web-based tool helps you find the most efficient sequence of operations to construct a Target Shape in the game Shapez 2, using a given set of Starting Shapes and Enabled Operations.
+
 The solver uses a Breadth-First Search (BFS) algorithm to explore possible combinations of operations and finds the shortest path to your desired shape.
 
 ---
@@ -8,6 +9,7 @@ The solver uses a Breadth-First Search (BFS) algorithm to explore possible combi
 ### Note:
 
 This website is in beta and may be unstable. Calculations can take a while, try to remove unnecessary starting shapes and operations.
+
 Most of the shape and operation code in this project was ported to JS from the [ShapeBot 2](https://github.com/tobspr-games/shapez-2-discord-bot) source code, go check that out!
 
 ---
