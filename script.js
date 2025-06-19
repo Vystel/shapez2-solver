@@ -676,7 +676,8 @@ class BFSSolverController {
             const nextLevel = [];
 
             // Process all states at current depth
-            for (const state of currentLevel) {
+            for (let i = 0; i < currentLevel.length; i++) {
+                const state = currentLevel[i];
                 // Check if we've found the solution
                 if (state.availableShapes.some(s => s.shape === this.solver.targetShape)) {
                     const elapsed = (performance.now() - t0) / 1000;
@@ -747,12 +748,20 @@ class BFSSolverController {
                         }
                     }
                 }
+                // Prevent freezing with yield control (every 100 states is probably fine)
+                if (i % 100 === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                    if (this.cancelled) return;
+                }
             }
 
             // Update status and prepare next level
             depth++;
             this.statusElement.textContent = `Depth ${depth} → ${nextLevel.length} states | ${visited.size} total states`;
             currentLevel = nextLevel;
+
+            // Prevent freezing with yield control (every depth increase, but this is probably not necessary as we already do this every 100 states)
+            await new Promise(resolve => setTimeout(resolve, 0));
         }
 
         this.statusElement.textContent = this.cancelled
