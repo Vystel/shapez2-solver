@@ -18,4 +18,4 @@ The solver uses a **Breadth-First Search (BFS) algorithm** to explore possible c
 
 ### Note:
 
-This website is in beta and may be unstable. It will freeze during calculations, and complex requests could cause the page to crash. Try to limit the number of starting shapes and colors in your target shape.
+This website is in beta and may be unstable. Calculations can take a while, try to remove unnecessary starting shapes and operations.
