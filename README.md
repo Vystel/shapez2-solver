@@ -6,16 +6,16 @@ The solver uses a **Breadth-First Search (BFS) algorithm** to explore possible c
 
 ---
 
-### How to Use
-
-1.  **Enter Target Shape:** In the "Target Shape" field, input the shape code you wish to create (e.g., `CuCuCuCu:SuSuSuSu`). Hex shapes are supported!
-2.  **Add Starting Shapes:** Under "Starting Shapes," type in the shape codes of the shapes you have available and click the `+` button to add them. You can remove shapes by clicking the `×` next to them.
-3.  **Enable Operations:** Check the boxes next to the operations you want the solver to consider.
-4.  **Solve:** Click the "Solve" button. The solver will begin processing. (Website will freeze!)
-5.  **View Solution:** If a solution is found, the steps will be displayed as a string and visualized in the graph area.
-
----
-
 ### Note:
 
 This website is in beta and may be unstable. Calculations can take a while, try to remove unnecessary starting shapes and operations.
+
+---
+
+### How to Use
+
+1.  Enter the shape code you want to make in the **Target Shape** box. Hex shapes are supported!
+2.  Type the codes of the shapes you want the solver to work with in the "Starting Shapes** box.
+3.  To make calculations quicker, uncheck the boxes next to unnecessary operations you don't want the solver to consider.
+4.  Once everything is set up, click the "Solve" button. The solver will begin processing. (This can take a while, depending on the complexity of the shape.)
+5.  If a solution is found, the steps will be visualized in the graph area. (This will also give you a code you can feed into ShapeBot 2's /operationGraph command.)
