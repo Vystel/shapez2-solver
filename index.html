@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shapez 2 Solver</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="sidebar">
+        <h1>Shapez 2 Solver</h1>
+        
+        <h2>Target Shape</h2>
+        <div id="input-button-container">
+            <input type="text" id="target-shape" placeholder="Shape Code">
+            <button id="calculate-btn">Solve</button>
+        </div>
+        <p> NOTE: This website is in beta and may be unstable. It will freeze during calculations, and complex requests could cause the page to crash. Try to limit the number of starting shapes and colors in your target shape.</p>
+        <div style="width: 100%; height: 1px; background-color: gray; margin: 20px 0;"></div>
+        
+        <h2>Starting Shapes</h2>
+        <p>Shapes that are used to construct the target shape through a series of operations.</p>
+        <div id="input-button-container">
+            <input type="text" id="new-shape-input" placeholder="Shape Code">
+            <button id="add-shape-btn">+</button>
+        </div>
+        <div id="starting-shapes">
+            <div class="shape-item">
+                <span>CuCuCuCu</span>
+                <span class="remove-shape" data-shape="RuRuRuRu">×</span>
+            </div>
+            <div class="shape-item">
+                <span>RuRuRuRu</span>
+                <span class="remove-shape" data-shape="CuCuCuCu">×</span>
+            </div>
+            <div class="shape-item">
+                <span>SuSuSuSu</span>
+                <span class="remove-shape" data-shape="SuSuSuSu">×</span>
+            </div>
+            <div class="shape-item">
+                <span>WuWuWuWu</span>
+                <span class="remove-shape" data-shape="WuWuWuWu">×</span>
+            </div>
+        </div>
+
+        <div style="width: 100%; height: 1px; background-color: gray; margin: 20px 0;"></div>
+
+        <h2>Enabled Operations</h2>
+        <div id="operation-checkboxes">
+            <label><input type="checkbox" class="operation-toggle" value="halfDestroyer" checked> Half Cutter</label><br>
+            <label><input type="checkbox" class="operation-toggle" value="cutter" checked> Cutter</label><br>
+            <label><input type="checkbox" class="operation-toggle" value="swapper" checked> Swapper</label><br>
+            <label><input type="checkbox" class="operation-toggle" value="rotateCW" checked> Rotate CW</label><br>
+            <label><input type="checkbox" class="operation-toggle" value="rotateCCW" checked> Rotate CCW</label><br>
+            <label><input type="checkbox" class="operation-toggle" value="rotate180" checked> Rotate 180</label><br>
+            <label><input type="checkbox" class="operation-toggle" value="stacker" checked> Stacker</label><br>
+            <label><input type="checkbox" class="operation-toggle" value="pinPusher" checked> Pin Pusher</label><br>
+            <label><input type="checkbox" class="operation-toggle" value="painter" checked> Painter</label><br>
+        </div>
+    </div>
+    
+    <div id="main">
+        <h2>Solution</h2>
+        <div id="progress">
+            <p>Status: <span id="status-msg">Idle</span></p>
+        </div>
+        <div id="output">Enter a target shape code and click "Solve" to find the most efficient way to create it.</div>
+        <div id="graph-container"></div>
+    </div>
+
+    <script src="https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
+    <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
+    <script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
+    <script>
+        cytoscape.use(cytoscapeDagre);
+    </script>
+    <script src="script.js"></script>
+</body>
+</html>
