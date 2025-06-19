@@ -14,8 +14,8 @@ This website is in beta and may be unstable. Calculations can take a while, try 
 
 ### How to Use
 
-1.  Enter the shape code you want to make in the **Target Shape** box. Hex shapes are supported!
-2.  Type the codes of the shapes you want the solver to work with in the "Starting Shapes** box.
+1.  Enter the shape code you want to make in the "Target Shapes" box. Hex shapes are supported!
+2.  Type the codes of the shapes you want the solver to work with in the "Starting Shapes" box.
 3.  To make calculations quicker, uncheck the boxes next to unnecessary operations you don't want the solver to consider.
 4.  Once everything is set up, click the "Solve" button. The solver will begin processing. (This can take a while, depending on the complexity of the shape.)
 5.  If a solution is found, the steps will be visualized in the graph area. (This will also give you a code you can feed into ShapeBot 2's /operationGraph command.)
