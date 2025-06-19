@@ -265,12 +265,28 @@ class BFSSolverController {
                         const combos = this.getCombinations(validShapes, op.inputs);
 
                         for (const combo of combos) {
-                            try {
-                                const inputs = combo.map(s => s.shape);
-                                const outputs = op.apply(...inputs);
-                                this.processState(state, combo, op, outputs, null, nextLevel, visited);
-                            } catch (e) {
-                                // Invalid operation, skip
+                            const inputs = combo.map(s => s.shape);
+
+                            // Special case for stacker: try both input orders
+                            if (opName === 'stacker') {
+                                // Original order
+                                try {
+                                    const outputs1 = op.apply(...inputs);
+                                    this.processState(state, combo, op, outputs1, null, nextLevel, visited);
+                                } catch (e) {}
+
+                                // Reversed order
+                                try {
+                                    const reversedCombo = [...combo].reverse();
+                                    const outputs2 = op.apply(...reversedCombo.map(s => s.shape));
+                                    this.processState(state, reversedCombo, op, outputs2, null, nextLevel, visited);
+                                } catch (e) {}
+                            } else {
+                                // Default handling
+                                try {
+                                    const outputs = op.apply(...inputs);
+                                    this.processState(state, combo, op, outputs, null, nextLevel, visited);
+                                } catch (e) {}
                             }
                         }
                     }
