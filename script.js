@@ -660,6 +660,36 @@ function getEnabledOperations() {
     return enabledOps;
 }
 
+function getColorsInShape(shape) {
+    const colorSet = new Set();
+
+    for (const layer of shape.layers) {
+        for (const part of layer) {
+            // Only consider paintable shapes, excluding "u" colors
+            if (!UNPAINTABLE_SHAPES.includes(part.shape) && part.color !== "u") {
+                colorSet.add(part.color);
+            }
+        }
+    }
+
+    return Array.from(colorSet);
+}
+
+function getCrystalColorsInShape(shape) {
+    const crystalColors = new Set();
+
+    for (const layer of shape.layers) {
+        for (const part of layer) {
+            // Only consider crystal shapes
+            if (part.shape === CRYSTAL_CHAR) {
+                crystalColors.add(part.color);
+            }
+        }
+    }
+
+    return Array.from(crystalColors);
+}
+
 // ==================== Shape Input Management ====================
 document.getElementById('add-shape-btn').addEventListener('click', () => {
     const input = document.getElementById('new-shape-input');
@@ -756,30 +786,30 @@ class BFSSolverController {
                     // Skip if not enough shapes
                     if (state.availableShapes.length < op.inputs) continue;
 
-                    // Get valid combinations - SPECIAL HANDLING FOR PAINTER
                     if (opName === 'painter' || opName === 'crystalGenerator') {
-                        // For painter/crystal, we need shape + color combinations
                         const validShapes = state.availableShapes.filter(s => !/^[-]+$/.test(s.shape));
-                        const colors = [...new Set(this.solver.targetShape.match(/[rgbcmyw]/g) || [])];
+                        const targetShapeObj = Shape.fromShapeCode(this.solver.targetShape);
+
+                        const colorsToUse = (opName === 'crystalGenerator')
+                            ? getCrystalColorsInShape(targetShapeObj)
+                            : getColorsInShape(targetShapeObj);
 
                         for (const shape of validShapes) {
-                            if (this.cancelled) return;
-                            for (const color of colors) {
-                                if (this.cancelled) return;
+                            for (const color of colorsToUse) {
                                 try {
                                     const outputs = op.apply(shape.shape, color);
                                     this.processState(
                                         state,
-                                        [shape], // Only the shape is the input (color is extra data)
+                                        [shape],
                                         op,
                                         outputs,
-                                        [color], // Pass color as extra data
+                                        [color],
                                         nextLevel,
                                         visited,
                                         opName
                                     );
                                 } catch (e) {
-                                    // Invalid operation, skip
+                                    // Silently skip invalid operations
                                 }
                             }
                         }
