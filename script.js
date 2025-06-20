@@ -610,7 +610,7 @@ function createShapeElement(shapeCode) {
     const container = document.createElement('div');
     container.className = 'shape-display';
     
-    const canvas = createShapeCanvas(shapeCode, 60, SHAPES_CONFIG.QUAD, COLOR_MODES.RGB);
+    const canvas = createShapeCanvas(shapeCode, 40, SHAPES_CONFIG.QUAD, COLOR_MODES.RGB);
     canvas.className = 'shape-canvas';
     
     const label = document.createElement('span');
@@ -734,7 +734,15 @@ class BFSSolverController {
                 if (this.cancelled) return;
                 const state = currentLevel[i];
                 // Check if we've found the solution
-                if (state.availableShapes.some(s => s.shape === this.solver.targetShape)) {
+                const preventWaste = document.getElementById('prevent-waste-checkbox').checked;
+                const nonEmptyShapes = state.availableShapes.filter(s => !/^[-]+$/.test(s.shape));
+                const matchingTargets = nonEmptyShapes.filter(s => s.shape === this.solver.targetShape);
+
+                const isGoalState = preventWaste
+                    ? nonEmptyShapes.length > 0 && matchingTargets.length === nonEmptyShapes.length
+                    : matchingTargets.length > 0;
+
+                if (isGoalState) {
                     const elapsed = (performance.now() - t0) / 1000;
                     this.statusElement.textContent = `Solved in ${elapsed.toFixed(2)}s at depth ${depth}, ${visited.size} states`;
                     this.displaySolution(state.solution);
@@ -751,7 +759,7 @@ class BFSSolverController {
                     // Get valid combinations - SPECIAL HANDLING FOR PAINTER
                     if (opName === 'painter' || opName === 'crystalGenerator') {
                         // For painter/crystal, we need shape + color combinations
-                        const validShapes = state.availableShapes.filter(s => s.shape !== '--------');
+                        const validShapes = state.availableShapes.filter(s => !/^[-]+$/.test(s.shape));
                         const colors = [...new Set(this.solver.targetShape.match(/[rgbcmyw]/g) || [])];
 
                         for (const shape of validShapes) {
@@ -777,7 +785,7 @@ class BFSSolverController {
                         }
                     } else {
                         // Normal operation handling
-                        const validShapes = state.availableShapes.filter(s => s.shape !== '--------');
+                        const validShapes = state.availableShapes.filter(s => !/^[-]+$/.test(s.shape));
                         const combos = this.getCombinations(validShapes, op.inputs);
 
                         for (const combo of combos) {

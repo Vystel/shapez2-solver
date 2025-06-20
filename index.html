@@ -10,13 +10,16 @@
     <div id="sidebar">
         <h1>Shapez 2 Solver</h1>
         <p> NOTE: This website is in beta and may be unstable. Calculations can take a while, try to remove unnecessary starting shapes and operations.</p>
+
+        <div style="width: 100%; height: 1px; background-color: gray; margin: 20px 0;"></div>
         
         <h2>Target Shape</h2>
+        <p>The shape you want to make. Preventing waste means all final shapes must be the target shape.</p>
         <div id="input-button-container">
             <input type="text" id="target-shape" placeholder="Shape Code">
             <button id="calculate-btn">Solve</button>
         </div>
-        <p>The shape you want to make.</p>
+        <label><input type="checkbox" class="operation-toggle" id="prevent-waste-checkbox" /> Prevent Waste</label>
 
         <div style="width: 100%; height: 1px; background-color: gray; margin: 20px 0;"></div>
         
@@ -33,6 +36,7 @@
         <div style="width: 100%; height: 1px; background-color: gray; margin: 20px 0;"></div>
 
         <h2>Enabled Operations</h2>
+        <p>Operations allowed for use. Disable redundant operations for quicker processing!</p>
         <div id="operation-checkboxes">
             <label><input type="checkbox" class="operation-toggle" value="halfDestroyer" checked> Half Cutter</label><br>
             <label><input type="checkbox" class="operation-toggle" value="cutter" checked> Cutter</label><br>
@@ -52,8 +56,8 @@
         <div id="progress">
             <p>Status: <span id="status-msg">Idle</span></p>
         </div>
-        <div id="output">Enter a target shape code and click "Solve" to find the most efficient way to create it.</div>
         <div id="graph-container"></div>
+        <div id="output"></div>
     </div>
 
     <script src="https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
