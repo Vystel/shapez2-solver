@@ -661,18 +661,41 @@ function getEnabledOperations() {
 }
 
 function getColorsInShape(shape) {
-    const colorSet = new Set();
+    const shapeColorMap = new Map();
 
     for (const layer of shape.layers) {
         for (const part of layer) {
             // Only consider paintable shapes, excluding "u" colors
             if (!UNPAINTABLE_SHAPES.includes(part.shape) && part.color !== "u") {
-                colorSet.add(part.color);
+                if (!shapeColorMap.has(part.shape)) {
+                    shapeColorMap.set(part.shape, new Set());
+                }
+                shapeColorMap.get(part.shape).add(part.color);
             }
         }
     }
 
-    return Array.from(colorSet);
+    return shapeColorMap;
+}
+
+function getValidColorsForShape(inputShape, targetShapeColorMap) {
+    const validColors = new Set();
+    const inputShapeObj = Shape.fromShapeCode(inputShape);
+
+    for (const layer of inputShapeObj.layers) {
+        for (const part of layer) {
+            // Only consider paintable shapes
+            if (!UNPAINTABLE_SHAPES.includes(part.shape)) {
+                // Get colors that are valid for this shape type from target
+                const colorsForThisShape = targetShapeColorMap.get(part.shape);
+                if (colorsForThisShape) {
+                    colorsForThisShape.forEach(color => validColors.add(color));
+                }
+            }
+        }
+    }
+
+    return Array.from(validColors);
 }
 
 function getCrystalColorsInShape(shape) {
@@ -787,13 +810,11 @@ class BFSSolverController {
                     if (state.availableShapes.length < op.inputs) continue;
 
                     if (opName === 'painter' || opName === 'crystalGenerator') {
-                        const validShapes = state.availableShapes.filter(s => !/^[-]+$/.test(s.shape));
-                        const targetShapeObj = Shape.fromShapeCode(this.solver.targetShape);
+                    const validShapes = state.availableShapes.filter(s => !/^[-]+$/.test(s.shape));
+                    const targetShapeObj = Shape.fromShapeCode(this.solver.targetShape);
 
-                        const colorsToUse = (opName === 'crystalGenerator')
-                            ? getCrystalColorsInShape(targetShapeObj)
-                            : getColorsInShape(targetShapeObj);
-
+                    if (opName === 'crystalGenerator') {
+                        const colorsToUse = getCrystalColorsInShape(targetShapeObj);
                         for (const shape of validShapes) {
                             for (const color of colorsToUse) {
                                 try {
@@ -814,6 +835,30 @@ class BFSSolverController {
                             }
                         }
                     } else {
+                        // Painter operation - use targeted color selection
+                        const targetShapeColorMap = getColorsInShape(targetShapeObj);
+                        for (const shape of validShapes) {
+                            const colorsToUse = getValidColorsForShape(shape.shape, targetShapeColorMap);
+                            for (const color of colorsToUse) {
+                                try {
+                                    const outputs = op.apply(shape.shape, color);
+                                    this.processState(
+                                        state,
+                                        [shape],
+                                        op,
+                                        outputs,
+                                        [color],
+                                        nextLevel,
+                                        visited,
+                                        opName
+                                    );
+                                } catch (e) {
+                                    // Silently skip invalid operations
+                                }
+                            }
+                        }
+                    }
+                } else {
                         // Normal operation handling
                         const validShapes = state.availableShapes.filter(s => !/^[-]+$/.test(s.shape));
                         const combos = this.getCombinations(validShapes, op.inputs);
