@@ -301,12 +301,17 @@ function _makeLayersFall(layers) {
 }
 
 function _cleanUpEmptyUpperLayers(layers) {
+    if (layers.length === 0) {
+        return [];
+    }
+    
     for (let i = layers.length - 1; i >= 0; i--) {
         if (layers[i].some(p => p.shape !== NOTHING_CHAR)) {
             return layers.slice(0, i + 1);
         }
     }
-    return [];
+
+    return [layers[0]];
 }
 
 function _differentNumPartsUnsupported(func) {
@@ -946,7 +951,7 @@ class BFSSolverController {
                 const [id, shape] = step.split('=');
                 const nodeId = `node-${id}`;
                 nodeMap[id] = nodeId;
-                const shapeCanvas = createShapeCanvas(shape, 40);
+                const shapeCanvas = createShapeCanvas(shape, 60);
                 elements.push({
                     data: { 
                         id: nodeId, 
@@ -987,7 +992,7 @@ class BFSSolverController {
 
                     // Use shape from mapping - create canvas for visualization
                     const shapeCode = idToShape[output] || output;
-                    const shapeCanvas = createShapeCanvas(shapeCode, 40);
+                    const shapeCanvas = createShapeCanvas(shapeCode, 60);
                     elements.push({
                         data: { 
                             id: nodeId, 
