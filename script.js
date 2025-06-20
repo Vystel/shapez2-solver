@@ -1108,7 +1108,8 @@ class BFSSolverController {
             userZoomingEnabled: true,
             userPanningEnabled: true,
             boxSelectionEnabled: true,
-            autoungrabify: false
+            autoungrabify: false,
+            wheelSensitivity: 0.1
         });
     }
 
