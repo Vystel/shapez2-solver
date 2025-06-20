@@ -683,6 +683,7 @@ class BFSSolverController {
                     const elapsed = (performance.now() - t0) / 1000;
                     this.statusElement.textContent = `Solved in ${elapsed.toFixed(2)}s at depth ${depth}, ${visited.size} states`;
                     this.displaySolution(state.solution);
+                    this.cleanup();
                     return;
                 }
 
@@ -768,6 +769,7 @@ class BFSSolverController {
             ? 'Cancelled'
             : `No solution found after ${depth} steps (${visited.size} states)`;
         this.displaySolution(null);
+        this.cleanup();
     }
 
     getCombinations(arr, k) {
@@ -824,6 +826,12 @@ class BFSSolverController {
     cancel() {
         this.cancelled = true;
         this.statusElement.textContent = 'Cancelled.';
+    }
+
+    cleanup() {
+        document.getElementById('calculate-btn').textContent = "Calculate";
+        currentSolverController = null;
+        this.cancelled = false;
     }
 
     displaySolution(solution) {
@@ -1005,6 +1013,13 @@ class BFSSolverController {
 
 // ==================== Main Button Logic ====================
 document.getElementById('calculate-btn').addEventListener('click', () => {
+    if (currentSolverController) {
+        // Cancel current solver
+        currentSolverController.cancel();
+        currentSolverController.cleanup();
+        return;
+    }
+
     const targetShape = document.getElementById('target-shape').value.trim();
     if (!targetShape) return;
 
@@ -1014,11 +1029,6 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
     const solver = new BFSSolver(startingShapes, targetShape, enabledOperations);
     currentSolverController = new BFSSolverController(solver);
     currentSolverController.start();
-});
 
-
-document.getElementById('cancel-btn').addEventListener('click', () => {
-    if (currentSolverController) {
-        currentSolverController.cancel();
-    }
+    document.getElementById('calculate-btn').textContent = "Cancel";
 });
