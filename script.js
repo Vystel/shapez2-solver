@@ -1,3 +1,6 @@
+// ==================== Imports ====================
+import { renderShape, createShapeCanvas, isValidShapeCode, SHAPES_CONFIG, COLOR_MODES } from './shapeRendering.js';
+
 // ==================== Global State ====================
 let currentSolverController = null;
 
@@ -597,10 +600,48 @@ const operations = {
     }
 };
 
+// ==================== Shape Display Functions ====================
+function createShapeElement(shapeCode) {
+    const container = document.createElement('div');
+    container.className = 'shape-display';
+    
+    const canvas = createShapeCanvas(shapeCode, 60, SHAPES_CONFIG.QUAD, COLOR_MODES.RGB);
+    canvas.className = 'shape-canvas';
+    
+    const label = document.createElement('span');
+    label.className = 'shape-label';
+    label.textContent = shapeCode;
+    
+    container.appendChild(canvas);
+    container.appendChild(label);
+    
+    return container;
+}
+
 // ==================== Utility Functions ====================
 function getStartingShapes() {
-    return Array.from(document.querySelectorAll('#starting-shapes .shape-item span:first-child'))
-        .map(span => span.textContent);
+    return Array.from(document.querySelectorAll('#starting-shapes .shape-item .shape-label'))
+        .map(label => label.textContent);
+}
+
+function initializeDefaultShapes() {
+    const defaultShapes = ['CuCuCuCu', 'RuRuRuRu', 'SuSuSuSu', 'WuWuWuWu'];
+    const container = document.getElementById('starting-shapes');
+    
+    defaultShapes.forEach(shapeCode => {
+        const shapeItem = document.createElement('div');
+        shapeItem.className = 'shape-item';
+        
+        const shapeDisplay = createShapeElement(shapeCode);
+        const removeBtn = document.createElement('span');
+        removeBtn.className = 'remove-shape';
+        removeBtn.textContent = '×';
+        removeBtn.setAttribute('data-shape', shapeCode);
+        
+        shapeItem.appendChild(shapeDisplay);
+        shapeItem.appendChild(removeBtn);
+        container.appendChild(shapeItem);
+    });
 }
 
 function getEnabledOperations() {
@@ -618,14 +659,22 @@ function getEnabledOperations() {
 document.getElementById('add-shape-btn').addEventListener('click', () => {
     const input = document.getElementById('new-shape-input');
     const shapeCode = input.value.trim();
-    if (!shapeCode) return;
+    if (!shapeCode || !isValidShapeCode(shapeCode)) {
+        alert('Invalid shape code. Please enter a valid shape code.');
+        return;
+    }
 
     const shapeItem = document.createElement('div');
     shapeItem.className = 'shape-item';
-    shapeItem.innerHTML = `
-        <span>${shapeCode}</span>
-        <span class="remove-shape" data-shape="${shapeCode}">×</span>
-    `;
+    
+    const shapeDisplay = createShapeElement(shapeCode);
+    const removeBtn = document.createElement('span');
+    removeBtn.className = 'remove-shape';
+    removeBtn.textContent = '×';
+    removeBtn.setAttribute('data-shape', shapeCode);
+    
+    shapeItem.appendChild(shapeDisplay);
+    shapeItem.appendChild(removeBtn);
 
     document.getElementById('starting-shapes').appendChild(shapeItem);
     input.value = '';
@@ -677,6 +726,7 @@ class BFSSolverController {
 
             // Process all states at current depth
             for (let i = 0; i < currentLevel.length; i++) {
+                if (this.cancelled) return;
                 const state = currentLevel[i];
                 // Check if we've found the solution
                 if (state.availableShapes.some(s => s.shape === this.solver.targetShape)) {
@@ -689,6 +739,7 @@ class BFSSolverController {
 
                 // Try all operations
                 for (const [opName, op] of Object.entries(this.solver.operations)) {
+                    if (this.cancelled) return;
                     // Skip if not enough shapes
                     if (state.availableShapes.length < op.inputs) continue;
 
@@ -699,7 +750,9 @@ class BFSSolverController {
                         const colors = [...new Set(this.solver.targetShape.match(/[rgbcmyw]/g) || [])];
 
                         for (const shape of validShapes) {
+                            if (this.cancelled) return;
                             for (const color of colors) {
+                                if (this.cancelled) return;
                                 try {
                                     const outputs = op.apply(shape.shape, color);
                                     this.processState(
@@ -723,6 +776,7 @@ class BFSSolverController {
                         const combos = this.getCombinations(validShapes, op.inputs);
 
                         for (const combo of combos) {
+                            if (this.cancelled) return;
                             const inputs = combo.map(s => s.shape);
 
                             // Special case for stacker: try both input orders
@@ -829,9 +883,8 @@ class BFSSolverController {
     }
 
     cleanup() {
-        document.getElementById('calculate-btn').textContent = "Calculate";
+        document.getElementById('calculate-btn').textContent = "Solve";
         currentSolverController = null;
-        this.cancelled = false;
     }
 
     displaySolution(solution) {
@@ -893,8 +946,13 @@ class BFSSolverController {
                 const [id, shape] = step.split('=');
                 const nodeId = `node-${id}`;
                 nodeMap[id] = nodeId;
+                const shapeCanvas = createShapeCanvas(shape, 40);
                 elements.push({
-                    data: { id: nodeId, label: shape },
+                    data: { 
+                        id: nodeId, 
+                        label: shape,
+                        shapeCanvas: shapeCanvas.toDataURL()
+                    },
                     classes: 'shape'
                 });
             } else {
@@ -927,10 +985,15 @@ class BFSSolverController {
                     const nodeId = `node-${output}`;
                     nodeMap[output] = nodeId;
 
-                    // Use shape from mapping
-                    const shapeLabel = idToShape[output] || output;
+                    // Use shape from mapping - create canvas for visualization
+                    const shapeCode = idToShape[output] || output;
+                    const shapeCanvas = createShapeCanvas(shapeCode, 40);
                     elements.push({
-                        data: { id: nodeId, label: shapeLabel },
+                        data: { 
+                            id: nodeId, 
+                            label: shapeCode,
+                            shapeCanvas: shapeCanvas.toDataURL()
+                        },
                         classes: 'shape'
                     });
 
@@ -953,12 +1016,23 @@ class BFSSolverController {
                         'background-color': '#888',
                         'label': 'data(label)',
                         'color': '#fff',
-                        'text-valign': 'center',
+                        'text-valign': 'bottom',
                         'text-halign': 'center',
                         'text-outline-width': 1,
                         'text-outline-color': '#333',
-                        'width': '60px',
-                        'height': '60px'
+                        'width': '80px',
+                        'height': '80px',
+                        'font-size': '10px'
+                    }
+                },
+                {
+                    selector: '.shape',
+                    style: {
+                        'background-image': 'data(shapeCanvas)',
+                        'background-fit': 'contain',
+                        'background-color': '#fff',
+                        'border-width': 2,
+                        'border-color': '#333'
                     }
                 },
                 {
@@ -966,8 +1040,9 @@ class BFSSolverController {
                     style: {
                         'background-color': '#0074D9',
                         'shape': 'rectangle',
-                        'width': '40px',
-                        'height': '40px'
+                        'width': '60px',
+                        'height': '40px',
+                        'text-valign': 'center'
                     }
                 },
                 {
@@ -1011,6 +1086,11 @@ class BFSSolverController {
     }
 }
 
+// ==================== Initialization ====================
+document.addEventListener('DOMContentLoaded', () => {
+    initializeDefaultShapes();
+});
+
 // ==================== Main Button Logic ====================
 document.getElementById('calculate-btn').addEventListener('click', () => {
     if (currentSolverController) {
@@ -1021,7 +1101,14 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
     }
 
     const targetShape = document.getElementById('target-shape').value.trim();
-    if (!targetShape) return;
+    if (!targetShape) {
+        alert('Please enter a target shape code.');
+        return;
+    }
+    if (!isValidShapeCode(targetShape)) {
+        alert('Invalid target shape code. Please enter a valid shape code.');
+        return;
+    }
 
     const startingShapes = getStartingShapes();
     const enabledOperations = getEnabledOperations();

@@ -132,6 +132,7 @@ button:hover {
 .shape-item {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     margin-bottom: 5px;
     padding: 10px;
     font-family: var(--font-mono);
@@ -139,6 +140,25 @@ button:hover {
     border: 1px solid var(--color-border);
     border-radius: 5px;
     letter-spacing: 1px;
+}
+
+.shape-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.shape-canvas {
+    border: 1px solid var(--color-border-light);
+    border-radius: 4px;
+    background-color: white;
+}
+
+.shape-label {
+    font-family: var(--font-mono);
+    font-weight: bold;
+    color: var(--color-text);
+    font-size: 12px;
 }
 
 .color-option {
@@ -149,4 +169,3 @@ button:hover {
     color: var(--color-accent);
     cursor: pointer;
 }
-
