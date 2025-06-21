@@ -19,7 +19,17 @@
             <input type="text" id="target-shape" placeholder="Shape Code">
             <button id="calculate-btn">Solve</button>
         </div>
-        <label><input type="checkbox" class="operation-toggle" id="prevent-waste-checkbox" /> Prevent Waste</label>
+        <div class="settings-container">
+            <div class="setting">
+                <label for="max-depth">Max Depth:</label>
+                <input type="number" id="max-depth" value="8" min="1" max="20">
+            </div>
+            <div class="setting">
+                <label for="max-states-per-level">Max States Per Level:</label>
+                <input type="number" id="max-states-per-level" value="1000" min="100" max="10000" step="100">
+            </div>
+            <label><input type="checkbox" class="operation-toggle" id="prevent-waste-checkbox" /> Prevent Waste</label>
+        </div>
 
         <div style="width: 100%; height: 1px; background-color: gray; margin: 20px 0;"></div>
         

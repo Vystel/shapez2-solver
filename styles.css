@@ -185,3 +185,55 @@ button:hover {
 ::-webkit-scrollbar-track {
     background: var(--bg-main);
 }
+
+.settings-container {
+    margin: 10px 0;
+    padding: 15px;
+    border: 1px solid var(--color-border);
+    border-radius: 15px;
+    background-color: var(--bg-box);
+}
+
+.setting {
+    margin: 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.setting label {
+    min-width: 180px;
+    color: var(--color-subtext);
+    font-size: 14px;
+}
+
+.setting input[type="number"] {
+    width: 120px;
+    padding: 8px 12px;
+    background-color: var(--bg-input);
+    color: var(--color-text);
+    border: 1px solid var(--color-border-light);
+    border-radius: 5px;
+    font-family: var(--font-mono);
+    font-size: 14px;
+}
+
+.setting input[type="number"]:focus {
+    outline: none;
+    border-color: var(--color-accent);
+}
+
+.setting input[type="number"]:hover {
+    border-color: var(--color-hover);
+}
+
+/* Remove spinner buttons from number inputs */
+.setting input[type="number"]::-webkit-inner-spin-button,
+.setting input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.setting input[type="number"] {
+    -moz-appearance: textfield;
+}
