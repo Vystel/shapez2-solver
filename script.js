@@ -1,5 +1,5 @@
 // ==================== Imports ====================
-import { renderShape, createShapeCanvas, isValidShapeCode, SHAPES_CONFIG, COLOR_MODES } from './shapeRendering.js';
+import { renderShape, createShapeCanvas, isValidShapeCode, SHAPES_CONFIG, COLOR_MODES, baseColors } from './shapeRendering.js';
 
 // ==================== Global State ====================
 let currentSolverController = null;
@@ -1126,11 +1126,33 @@ class BFSSolverController {
 
                 // Add operation node
                 let opLabel = op;
-                if (op === 'paint') opLabel += ` (${inputs[1]})`;
-                if (op === 'crystal') opLabel += ` (${inputs[1]})`;
+                let nodeClasses = 'op';
+                let backgroundColor = '#000';
+                
+                if (op === 'paint') {
+                    opLabel += ` (${inputs[1]})`;
+                    // Get color from baseColors using the color input
+                    if (baseColors[inputs[1]]) {
+                        backgroundColor = baseColors[inputs[1]];
+                        nodeClasses += ' colored-op';
+                    }
+                } else if (op === 'crystal') {
+                    opLabel += ` (${inputs[1]})`;
+                    // Get color from baseColors using the color input
+                    if (baseColors[inputs[1]]) {
+                        backgroundColor = baseColors[inputs[1]];
+                        nodeClasses += ' colored-op';
+                    }
+                }
+                
                 elements.push({
-                    data: { id: opId, label: opLabel },
-                    classes: 'op'
+                    data: { 
+                        id: opId, 
+                        label: opLabel, 
+                        image: `images/${op}.png`,
+                        backgroundColor: backgroundColor
+                    },
+                    classes: nodeClasses
                 });
 
                 // Connect inputs to operation
@@ -1200,11 +1222,25 @@ class BFSSolverController {
                 {
                     selector: '.op',
                     style: {
-                        'background-color': '#0074D9',
+                        'background-image': 'data(image)',
+                        'background-fit': 'cover',
+                        'background-opacity': 0,
                         'shape': 'rectangle',
+                        'background-color': 'transparent',
+                        'border-width': 0,
                         'width': '60px',
-                        'height': '40px',
-                        'text-valign': 'center'
+                        'height': '60px',
+                        'label': 'data(label)',
+                        'text-valign': 'bottom',
+                        'text-halign': 'center'
+                    }
+                },
+                {
+                    selector: '.colored-op',
+                    style: {
+                        'shape': 'ellipse',
+                        'background-color': 'data(backgroundColor)',
+                        'background-opacity': 0.5
                     }
                 },
                 {
