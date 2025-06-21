@@ -713,6 +713,45 @@ function getCrystalColorsInShape(shape) {
     return Array.from(crystalColors);
 }
 
+function extractShapesByType(shapeCode) {
+    const shape = Shape.fromShapeCode(shapeCode);
+    const numParts = shape.numParts;
+
+    const groupedLayers = []; // Final list of layers to return
+
+    shape.layers.forEach((layer) => {
+        const seenShapes = {}; // Track shape -> list of positions
+
+        // Group parts by shape character
+        layer.forEach((part, partIndex) => {
+            if (
+                part.shape === NOTHING_CHAR ||
+                part.shape === PIN_CHAR ||
+                part.shape === CRYSTAL_CHAR
+            ) return;
+
+            if (!seenShapes[part.shape]) {
+                seenShapes[part.shape] = [];
+            }
+            seenShapes[part.shape].push(partIndex);
+        });
+
+        // For each unique shape, create a new layer row
+        Object.entries(seenShapes).forEach(([shapeChar, positions]) => {
+            const newLayer = Array.from({ length: numParts }, () => new ShapePart(NOTHING_CHAR, NOTHING_CHAR));
+            positions.forEach(pos => {
+                newLayer[pos] = new ShapePart(shapeChar, 'u');
+            });
+            groupedLayers.push(newLayer);
+        });
+    });
+
+    // Convert each ShapePart[] into a string like "Ru----Ru"
+    return groupedLayers.map(layer =>
+        layer.map(part => part.shape + part.color).join('')
+    );
+}
+
 // ==================== Shape Input Management ====================
 document.getElementById('add-shape-btn').addEventListener('click', () => {
     const input = document.getElementById('new-shape-input');
@@ -743,6 +782,41 @@ document.getElementById('starting-shapes').addEventListener('click', (e) => {
         e.target.parentElement.remove();
     }
 });
+
+document.getElementById('extract-shapes-btn').addEventListener('click', () => {
+    const targetInput = document.getElementById('target-shape');
+    const shapeCode = targetInput.value.trim();
+
+    if (!shapeCode || !isValidShapeCode(shapeCode)) {
+        alert('Invalid target shape code. Please enter a valid shape code.');
+        return;
+    }
+
+    // Clear existing starting shapes
+    const startingShapesContainer = document.getElementById('starting-shapes');
+    startingShapesContainer.innerHTML = '';
+
+    // Extract shape variants
+    const extractedShapes = extractShapesByType(shapeCode);
+
+    // Create and append shape elements
+    extractedShapes.forEach(shapeVariant => {
+        const shapeItem = document.createElement('div');
+        shapeItem.className = 'shape-item';
+
+        const shapeDisplay = createShapeElement(shapeVariant);
+        const removeBtn = document.createElement('span');
+        removeBtn.className = 'remove-shape';
+        removeBtn.textContent = '×';
+        removeBtn.setAttribute('data-shape', shapeVariant);
+
+        shapeItem.appendChild(shapeDisplay);
+        shapeItem.appendChild(removeBtn);
+
+        startingShapesContainer.appendChild(shapeItem);
+    });
+});
+
 
 // ==================== BFS Solver Class ====================
 class BFSSolver {

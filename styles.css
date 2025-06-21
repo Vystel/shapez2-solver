@@ -95,6 +95,11 @@ button:hover {
     background-color: var(--color-hover);
 }
 
+.bigButton {
+    width: 100%;
+    margin: 5px 0px;
+}
+
 /* Containers */
 #color-selection,
 #base-shapes {
@@ -152,12 +157,6 @@ button:hover {
     display: flex;
     align-items: center;
     gap: 8px;
-}
-
-.shape-canvas {
-    border: 1px solid var(--color-border-light);
-    border-radius: 4px;
-    background-color: white;
 }
 
 .shape-label {
