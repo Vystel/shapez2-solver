@@ -1361,7 +1361,6 @@ class ShapeSolverController {
                 {
                     selector: 'node',
                     style: {
-                        'background-color': '#888',
                         'label': 'data(label)',
                         'color': '#fff',
                         'text-valign': 'bottom',
@@ -1378,9 +1377,7 @@ class ShapeSolverController {
                     style: {
                         'background-image': 'data(shapeCanvas)',
                         'background-fit': 'contain',
-                        'background-color': '#fff',
-                        'border-width': 2,
-                        'border-color': '#333'
+                        'background-opacity': 0.1,
                     }
                 },
                 {
