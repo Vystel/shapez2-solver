@@ -3,6 +3,7 @@ import { renderShape, createShapeCanvas, isValidShapeCode, SHAPES_CONFIG, COLOR_
 
 // ==================== Global State ====================
 let currentSolverController = null;
+let cyInstance = null;
 
 // ==================== Constants ====================
 const NOTHING_CHAR = "-";
@@ -819,7 +820,7 @@ document.getElementById('extract-shapes-btn').addEventListener('click', () => {
 
 
 // ==================== BFS Solver Class ====================
-class BFSSolver {
+class ShapeSolver {
     constructor(startingShapes, targetShape, operations) {
         this.startingShapes = startingShapes;
         this.targetShape = targetShape;
@@ -895,7 +896,7 @@ class BFSSolver {
 }
 
 // ==================== Solver Controller ====================
-class BFSSolverController {
+class ShapeSolverController {
     constructor(solver) {
         this.solver = solver;
         this.cancelled = false;
@@ -977,7 +978,7 @@ class BFSSolverController {
                     if (isGoalState) {
                         const elapsed = (performance.now() - t0) / 1000;
                         this.statusElement.textContent = `Solved in ${elapsed.toFixed(2)}s at depth ${depth}, ${visited.size} states`;
-                        this.displaySolution(state.solution);
+                        this.renderGraph(state.solution);
                         this.cleanup();
                         return;
                     }
@@ -1128,7 +1129,7 @@ class BFSSolverController {
                       `No solution found after ${depth} steps`;
         
         this.statusElement.textContent = `${reason} (${visited.size} states)`;
-        this.displaySolution(null);
+        this.renderGraph(null);
         this.cleanup();
     }
 
@@ -1218,12 +1219,6 @@ class BFSSolverController {
         currentSolverController = null;
     }
 
-    displaySolution(solution) {
-        const output = document.getElementById('output');
-        output.textContent = solution || 'No solution found.';
-        this.renderGraph(solution);
-    }
-
     renderGraph(solution) {
         const container = document.getElementById('graph-container');
         container.innerHTML = '';
@@ -1277,7 +1272,7 @@ class BFSSolverController {
                 const [id, shape] = step.split('=');
                 const nodeId = `node-${id}`;
                 nodeMap[id] = nodeId;
-                const shapeCanvas = createShapeCanvas(shape, 60);
+                const shapeCanvas = createShapeCanvas(shape, 120);
                 elements.push({
                     data: { 
                         id: nodeId, 
@@ -1340,7 +1335,7 @@ class BFSSolverController {
 
                     // Use shape from mapping - create canvas for visualization
                     const shapeCode = idToShape[output] || output;
-                    const shapeCanvas = createShapeCanvas(shapeCode, 60);
+                    const shapeCanvas = createShapeCanvas(shapeCode, 120);
                     elements.push({
                         data: { 
                             id: nodeId, 
@@ -1359,7 +1354,7 @@ class BFSSolverController {
         }
 
         // Render graph
-        cytoscape({
+        cyInstance = cytoscape({
             container,
             elements,
             style: [
@@ -1418,7 +1413,8 @@ class BFSSolverController {
                         'width': 2,
                         'line-color': '#aaa',
                         'target-arrow-color': '#aaa',
-                        'target-arrow-shape': 'triangle'
+                        'target-arrow-shape': 'triangle',
+                        //'curve-style': 'bezier'
                     }
                 }
             ],
@@ -1481,9 +1477,50 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
     const startingShapes = getStartingShapes();
     const enabledOperations = getEnabledOperations();
 
-    const solver = new BFSSolver(startingShapes, targetShape, enabledOperations);
-    currentSolverController = new BFSSolverController(solver);
+    const solver = new ShapeSolver(startingShapes, targetShape, enabledOperations);
+    currentSolverController = new ShapeSolverController(solver);
     currentSolverController.start();
 
     document.getElementById('calculate-btn').textContent = "Cancel";
+});
+
+document.getElementById('snapshot-btn').addEventListener('click', async () => {
+    if (!cyInstance) return;
+
+    // Export the graph as a high-resolution PNG
+    const graphImage = cyInstance.png({
+        output: 'blob',
+        scale: 1,
+        full: true
+    });
+
+    try {
+        // Create a clipboard item
+        const clipboardItem = new ClipboardItem({ 'image/png': graphImage });
+
+        // Copy to clipboard
+        await navigator.clipboard.write([clipboardItem]);
+
+        alert('Graph image copied to clipboard!');
+    } catch {
+        alert('Failed to copy image to clipboard. Your browser may not support this.');
+    }
+});
+
+document.getElementById('direction-select').addEventListener('change', (event) => {
+    const direction = event.target.value;
+
+    if (cyInstance) {
+        const layout = cyInstance.layout({
+            name: 'dagre',
+            rankDir: direction,
+            nodeSep: 50,
+            edgeSep: 10,
+            rankSep: 100,
+            animate: true,
+            animationDuration: 500
+        });
+
+        layout.run();
+    }
 });

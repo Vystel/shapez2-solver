@@ -38,11 +38,14 @@ body {
 }
 
 #main {
-    padding: 20px;
+    padding: 0;
     flex-grow: 1;
     height: 100vh;
-    overflow-y: auto;
+    overflow: hidden;
     box-sizing: border-box;
+    position: relative;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Typography */
@@ -74,6 +77,18 @@ input[type="text"],
     border: 1px solid var(--color-border-light);
     border-radius: 5px;
     font-family: var(--font-mono);
+    white-space: pre-wrap;
+    box-sizing: border-box;
+    margin-bottom: 15px;
+}
+
+select {
+    padding: 8px;
+    background-color: var(--bg-input);
+    color: var(--color-text);
+    border: 1px solid var(--color-border-light);
+    border-radius: 5px;
+    font-family: var(--font-primary);
     white-space: pre-wrap;
     box-sizing: border-box;
     margin-bottom: 15px;
@@ -118,25 +133,45 @@ button:hover {
     margin-bottom: 0;
 }
 
-/* Output */
-#output {
-    font-family: var(--font-mono);
-    background-color: var(--bg-box);
-    padding: 15px;
-    border: 1px solid var(--color-border);
-    border-radius: 15px;
-    min-height: 100px;
-    color: #dcdcdc;
-    white-space: pre-wrap;
-    text-wrap: wrap;
+#graph-wrapper {
+    flex-grow: 1;
+    position: relative;
+    height: 100%;
+    width: 100%;
 }
 
 #graph-container {
-    height: 600px;
-    background-color: var(--bg-box);
-    border: 1px solid var(--color-border);
-    border-radius: 15px;
-    margin-bottom: 20px;
+    height: 100%;
+    width: 100%;
+    background-color: var(--bg-main);
+    border: none;
+    border-radius: 0;
+}
+
+#snapshot-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 10;
+    width: 50px;
+    height: 50px;
+    padding: 10px;
+}
+
+.graph-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: var(--bg-sidebar);
+    padding: 10px 20px;
+    border-top: 1px solid var(--color-border);
+}
+
+.graph-controls label,
+.graph-controls select,
+.graph-controls p {
+    margin: 0;
+    color: var(--color-subtext);
 }
 
 /* Shape list */

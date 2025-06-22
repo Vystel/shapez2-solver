@@ -1,17 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Shapez 2 Solver</title>
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <div id="sidebar">
         <h1>Shapez 2 Solver</h1>
 
         <div style="width: 100%; height: 1px; background-color: gray; margin: 20px 0;"></div>
-        
+
         <h2>Target Shape</h2>
         <p>The shape you want to make. Preventing waste means all final shapes must be the target shape.</p>
         <div id="input-button-container">
@@ -31,7 +33,7 @@
         </div>
 
         <div style="width: 100%; height: 1px; background-color: gray; margin: 20px 0;"></div>
-        
+
         <h2>Starting Shapes</h2>
         <p>Shapes that are used to construct the target shape through a series of operations.</p>
         <div id="input-button-container">
@@ -60,15 +62,28 @@
             <label><input type="checkbox" class="operation-toggle" value="crystalGenerator" checked> Crystal Generator</label><br>
         </div>
     </div>
-    
+
     <div id="main">
-        <h2>Solution</h2>
-        <div id="progress">
-            <p>Status: <span id="status-msg">Idle</span></p>
+        <div id="graph-wrapper">
+            <div id="graph-container"></div>
+            <button id="snapshot-btn"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy-icon lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button>
         </div>
-        <div id="graph-container"></div>
-        <div id="output"></div>
+        <div class="graph-controls">
+            <div id="progress">
+                <p>Status: <span id="status-msg">Idle</span></p>
+            </div>
+            <div class="direction-control">
+                <label for="direction-select">Graph Direction:</label>
+                <select id="direction-select">
+                    <option value="LR">Left to Right</option>
+                    <option value="TB">Top to Bottom</option>
+                    <option value="RL">Right to Left</option>
+                    <option value="BT">Bottom to Top</option>
+                </select>
+            </div>
+        </div>
     </div>
+
 
     <script src="https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
     <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
@@ -78,4 +93,5 @@
     </script>
     <script type="module" src="script.js"></script>
 </body>
+
 </html>
