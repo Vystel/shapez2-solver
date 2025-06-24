@@ -714,16 +714,16 @@ function getCrystalColorsInShape(shape) {
     return Array.from(crystalColors);
 }
 
-function extractShapesByType(shapeCode) {
+function extractShapesByColor(shapeCode) {
     const shape = Shape.fromShapeCode(shapeCode);
     const numParts = shape.numParts;
 
     const groupedLayers = []; // Final list of layers to return
 
     shape.layers.forEach((layer) => {
-        const seenShapes = {}; // Track shape -> list of positions
+        const seenColors = {}; // Track color -> list of positions and shapes
 
-        // Group parts by shape character
+        // Group parts by color character
         layer.forEach((part, partIndex) => {
             if (
                 part.shape === NOTHING_CHAR ||
@@ -731,17 +731,17 @@ function extractShapesByType(shapeCode) {
                 part.shape === CRYSTAL_CHAR
             ) return;
 
-            if (!seenShapes[part.shape]) {
-                seenShapes[part.shape] = [];
+            if (!seenColors[part.color]) {
+                seenColors[part.color] = [];
             }
-            seenShapes[part.shape].push(partIndex);
+            seenColors[part.color].push({ index: partIndex, shape: part.shape });
         });
 
-        // For each unique shape, create a new layer row
-        Object.entries(seenShapes).forEach(([shapeChar, positions]) => {
+        // For each unique color, create a new layer row (shapes with color 'u')
+        Object.entries(seenColors).forEach(([, entries]) => {
             const newLayer = Array.from({ length: numParts }, () => new ShapePart(NOTHING_CHAR, NOTHING_CHAR));
-            positions.forEach(pos => {
-                newLayer[pos] = new ShapePart(shapeChar, 'u');
+            entries.forEach(({ index, shape }) => {
+                newLayer[index] = new ShapePart(shape, 'u');
             });
             groupedLayers.push(newLayer);
         });
@@ -798,7 +798,7 @@ document.getElementById('extract-shapes-btn').addEventListener('click', () => {
     startingShapesContainer.innerHTML = '';
 
     // Extract shape variants
-    const extractedShapes = extractShapesByType(shapeCode);
+    const extractedShapes = extractShapesByColor(shapeCode);
 
     // Create and append shape elements
     extractedShapes.forEach(shapeVariant => {
