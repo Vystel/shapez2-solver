@@ -194,7 +194,7 @@ export function renderGraph(solution, operations, baseColors, createShapeCanvas)
                     'line-color': '#aaa',
                     'target-arrow-color': '#aaa',
                     'target-arrow-shape': 'triangle',
-                    //'curve-style': 'bezier' (enable this if you want arrows)
+                    'curve-style': 'bezier'
                 }
             }
         ],
