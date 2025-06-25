@@ -283,6 +283,11 @@ input[type="number"]:hover {
 
 .option-group {
     margin-bottom: 25px;
+    margin: 10px 0;
+    padding: 15px;
+    border: 1px solid var(--color-border);
+    border-radius: 15px;
+    background-color: var(--bg-box);
 }
 
 .option-group label {
@@ -304,4 +309,5 @@ input[type="number"]:hover {
     color: var(--color-subtext);
     font-size: 14px;
     margin-top: 5px;
+    margin-bottom: 0px;
 }
