@@ -66,6 +66,45 @@ p {
     margin-top: 0;
 }
 
+/* Tabs */
+#tab-container {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.tab-button {
+    flex: 1;
+    background-color: var(--bg-sidebar);
+    color: var(--color-subtext);
+    border: none;
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 16px;
+    font-family: var(--font-primary);
+    transition: background-color 0.3s ease;
+    border-bottom: 2px solid transparent;
+}
+
+.tab-button:hover {
+    background-color: var(--color-hover);
+}
+
+.tab-button.active {
+    background-color: var(--bg-box);
+    color: var(--color-heading);
+    border-bottom: 2px solid var(--color-accent);
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+
 /* Inputs */
 input[type="text"],
 #new-shape-input,
@@ -208,6 +247,7 @@ button:hover {
 .remove-shape {
     color: var(--color-accent);
     cursor: pointer;
+    font-size: 20px;
 }
 
 ::-webkit-scrollbar {
@@ -221,28 +261,7 @@ button:hover {
     background: var(--bg-main);
 }
 
-.settings-container {
-    margin: 10px 0;
-    padding: 15px;
-    border: 1px solid var(--color-border);
-    border-radius: 15px;
-    background-color: var(--bg-box);
-}
-
-.setting {
-    margin: 8px 0;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
-.setting label {
-    min-width: 180px;
-    color: var(--color-subtext);
-    font-size: 14px;
-}
-
-.setting input[type="number"] {
+input[type="number"] {
     width: 120px;
     padding: 8px 12px;
     background-color: var(--bg-input);
@@ -253,22 +272,36 @@ button:hover {
     font-size: 14px;
 }
 
-.setting input[type="number"]:focus {
+input[type="number"]:focus {
     outline: none;
     border-color: var(--color-accent);
 }
 
-.setting input[type="number"]:hover {
+input[type="number"]:hover {
     border-color: var(--color-hover);
 }
 
-/* Remove spinner buttons from number inputs */
-.setting input[type="number"]::-webkit-inner-spin-button,
-.setting input[type="number"]::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
+.option-group {
+    margin-bottom: 25px;
 }
 
-.setting input[type="number"] {
-    -moz-appearance: textfield;
+.option-group label {
+    display: block;
+    font-weight: 500;
+    color: var(--color-heading);
+    margin-bottom: 8px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    color: var(--color-heading);
+}
+
+.option-desc {
+    color: var(--color-subtext);
+    font-size: 14px;
+    margin-top: 5px;
 }

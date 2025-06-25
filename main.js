@@ -171,6 +171,21 @@ document.getElementById('extract-shapes-btn').addEventListener('click', () => {
     });
 });
 
+// ==================== Tab Switching Logic ====================
+document.querySelectorAll('.tab-button').forEach(button => {
+    button.addEventListener('click', () => {
+        // Remove 'active' class from all tab buttons and content
+        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+        // Add 'active' class to the clicked button
+        button.classList.add('active');
+
+        // Show the corresponding tab content
+        const targetTabId = button.id.replace('-tab-btn', '-content');
+        document.getElementById(targetTabId).classList.add('active');
+    });
+});
 
 // ==================== Initialization ====================
 document.addEventListener('DOMContentLoaded', () => {

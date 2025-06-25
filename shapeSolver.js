@@ -173,7 +173,6 @@ export class ShapeSolver {
         // Performance optimizations
         this.operationCache = new Map();
         this.targetColors = new Set(this.targetShape.match(/[rgbcmyw]/g) || []);
-        this.maxDepth = parseInt(document.getElementById('max-depth').value) || 8;
         this.maxStatesPerLevel = parseInt(document.getElementById('max-states-per-level').value) || Infinity;
 
         // Target analysis for heuristics
@@ -290,7 +289,7 @@ export class ShapeSolverController {
 
         const t0 = performance.now();
 
-        while (currentLevel.length > 0 && !this.cancelled && depth < this.solver.maxDepth) {
+        while (currentLevel.length > 0 && !this.cancelled) {
             // Sort states by heuristic (best first) and limit the number we explore
             currentLevel.sort((a, b) => b.heuristic - a.heuristic);
 
@@ -466,9 +465,7 @@ export class ShapeSolverController {
             currentLevel = nextLevel;
         }
 
-        const reason = this.cancelled ? 'Cancelled' :
-            depth >= this.solver.maxDepth ? `Max depth (${this.solver.maxDepth}) reached` :
-                `No solution found after ${depth} steps`;
+        const reason = this.cancelled ? 'Cancelled' : `No solution found after ${depth} steps`;
 
         this.statusElement.textContent = `${reason} (${visited.size} states)`;
         renderGraph(null); // Render empty graph or message if no solution
