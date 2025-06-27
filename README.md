@@ -22,7 +22,7 @@ This is a web-based tool for the game "Shapez 2" that tries to find the most eff
 
 ---
 
-**Sources:**
+### Sources:
 
 - [shapeOperations.js](https://github.com/tobspr-games/shapez-2-discord-bot) (JS Port)
 - [shapeRendering.js](https://github.com/Loupau38/loupau38.github.io/blob/main/assets/scripts/shapeViewer.js)
