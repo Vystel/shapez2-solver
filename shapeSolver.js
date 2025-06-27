@@ -1,5 +1,5 @@
 // ==================== Imports ====================
-import { Shape, CRYSTAL_CHAR, UNPAINTABLE_SHAPES, cut, halfCut, rotate90CW, rotate90CCW, rotate180, swapHalves, stack, topPaint, pushPin, genCrystal } from './shapeOperations.js';
+import { Shape, CRYSTAL_CHAR, UNPAINTABLE_SHAPES, cut, halfCut, rotate90CW, rotate90CCW, rotate180, swapHalves, stack, topPaint, pushPin, genCrystal, ShapeOperationConfig } from './shapeOperations.js'; // Import ShapeOperationConfig
 import { createShapeCanvas, baseColors } from './shapeRendering.js';
 import { renderGraph } from './operationGraph.js';
 
@@ -7,9 +7,9 @@ import { renderGraph } from './operationGraph.js';
 export const operations = {
     cutter: {
         inputs: 1,
-        apply: (shapeCode) => {
+        apply: (shapeCode, config) => {
             const shape = Shape.fromShapeCode(shapeCode);
-            const results = cut(shape);
+            const results = cut(shape, config);
             return results.map(s => s.toShapeCode());
         },
         toString: (inputId, output1Id, output2Id) => `${inputId}:cut:${output1Id},${output2Id}`
@@ -17,9 +17,9 @@ export const operations = {
 
     halfDestroyer: {
         inputs: 1,
-        apply: (shapeCode) => {
+        apply: (shapeCode, config) => {
             const shape = Shape.fromShapeCode(shapeCode);
-            const results = halfCut(shape);
+            const results = halfCut(shape, config);
             return results.map(s => s.toShapeCode());
         },
         toString: (inputId, outputId) => `${inputId}:hcut:${outputId}`
@@ -27,9 +27,9 @@ export const operations = {
 
     rotateCW: {
         inputs: 1,
-        apply: (shapeCode) => {
+        apply: (shapeCode, config) => {
             const shape = Shape.fromShapeCode(shapeCode);
-            const results = rotate90CW(shape);
+            const results = rotate90CW(shape, config);
             return results.map(s => s.toShapeCode());
         },
         toString: (inputId, outputId) => `${inputId}:r90cw:${outputId}`
@@ -37,9 +37,9 @@ export const operations = {
 
     rotateCCW: {
         inputs: 1,
-        apply: (shapeCode) => {
+        apply: (shapeCode, config) => {
             const shape = Shape.fromShapeCode(shapeCode);
-            const results = rotate90CCW(shape);
+            const results = rotate90CCW(shape, config);
             return results.map(s => s.toShapeCode());
         },
         toString: (inputId, outputId) => `${inputId}:r90ccw:${outputId}`
@@ -47,9 +47,9 @@ export const operations = {
 
     rotate180: {
         inputs: 1,
-        apply: (shapeCode) => {
+        apply: (shapeCode, config) => {
             const shape = Shape.fromShapeCode(shapeCode);
-            const results = rotate180(shape);
+            const results = rotate180(shape, config);
             return results.map(s => s.toShapeCode());
         },
         toString: (inputId, outputId) => `${inputId}:r180:${outputId}`
@@ -57,10 +57,10 @@ export const operations = {
 
     swapper: {
         inputs: 2,
-        apply: (shapeCode1, shapeCode2) => {
+        apply: (shapeCode1, shapeCode2, config) => {
             const shape1 = Shape.fromShapeCode(shapeCode1);
             const shape2 = Shape.fromShapeCode(shapeCode2);
-            const results = swapHalves(shape1, shape2);
+            const results = swapHalves(shape1, shape2, config);
             return results.map(s => s.toShapeCode());
         },
         toString: (input1Id, input2Id, output1Id, output2Id) => `${input1Id},${input2Id}:swap:${output1Id},${output2Id}`
@@ -68,10 +68,10 @@ export const operations = {
 
     stacker: {
         inputs: 2,
-        apply: (bottomShapeCode, topShapeCode) => {
+        apply: (bottomShapeCode, topShapeCode, config) => {
             const bottomShape = Shape.fromShapeCode(bottomShapeCode);
             const topShape = Shape.fromShapeCode(topShapeCode);
-            const results = stack(bottomShape, topShape);
+            const results = stack(bottomShape, topShape, config);
             return results.map(s => s.toShapeCode());
         },
         toString: (bottomId, topId, outputId) => `${bottomId},${topId}:stack:${outputId}`
@@ -79,9 +79,9 @@ export const operations = {
 
     painter: {
         inputs: 1,
-        apply: (shapeCode, color) => {
+        apply: (shapeCode, color, config) => {
             const shape = Shape.fromShapeCode(shapeCode);
-            const results = topPaint(shape, color);
+            const results = topPaint(shape, color, config);
             return results.map(s => s.toShapeCode());
         },
         toString: (inputId, color, outputId) => `${inputId},${color}:paint:${outputId}`
@@ -89,9 +89,9 @@ export const operations = {
 
     pinPusher: {
         inputs: 1,
-        apply: (shapeCode) => {
+        apply: (shapeCode, config) => {
             const shape = Shape.fromShapeCode(shapeCode);
-            const results = pushPin(shape);
+            const results = pushPin(shape, config);
             return results.map(s => s.toShapeCode());
         },
         toString: (inputId, outputId) => `${inputId}:pin:${outputId}`
@@ -99,9 +99,9 @@ export const operations = {
 
     crystalGenerator: {
         inputs: 1,
-        apply: (shapeCode, color) => {
+        apply: (shapeCode, color, config) => {
             const shape = Shape.fromShapeCode(shapeCode);
-            const results = genCrystal(shape, color);
+            const results = genCrystal(shape, color, config);
             return results.map(s => s.toShapeCode());
         },
         toString: (inputId, color, outputId) => `${inputId},${color}:crystal:${outputId}`
@@ -174,6 +174,9 @@ export class ShapeSolver {
         this.operationCache = new Map();
         this.targetColors = new Set(this.targetShape.match(/[rgbcmyw]/g) || []);
         this.maxStatesPerLevel = parseInt(document.getElementById('max-states-per-level').value) || Infinity;
+        // Retrieve maxShapeLayers from the input element
+        this.maxShapeLayers = parseInt(document.getElementById('max-layers').value) || 4;
+
 
         // Target analysis for heuristics
         this.targetLayers = this.targetShape.split(':');
@@ -221,13 +224,16 @@ export class ShapeSolver {
 
     // Cache operation results to avoid recomputation
     getCachedOperation(opName, ...inputs) {
-        const key = `${opName}:${inputs.join(',')}`;
+        const shapes = inputs.slice(0, inputs.length - 1);
+        const config = inputs[inputs.length - 1];
+
+        const key = `${opName}:${shapes.join(',')}:${config.maxShapeLayers}`;
         if (this.operationCache.has(key)) {
             return this.operationCache.get(key);
         }
 
         try {
-            const result = this.operations[opName].apply(...inputs);
+            const result = this.operations[opName].apply(...shapes, config);
             this.operationCache.set(key, result);
             return result;
         } catch (e) {
@@ -246,6 +252,7 @@ export class ShapeSolverController {
         this.statusElement = document.getElementById('status-msg');
         this.processedStates = 0;
         this.lastUpdate = 0;
+        this.operationConfig = new ShapeOperationConfig(this.solver.maxShapeLayers);
     }
 
     // Calculate heuristic score for a state (higher is better)
@@ -340,7 +347,7 @@ export class ShapeSolverController {
                                 for (const shape of validShapes) {
                                     for (const color of colorsToUse) {
                                         try {
-                                            const outputs = this.solver.getCachedOperation(opName, shape.shape, color);
+                                            const outputs = this.solver.getCachedOperation(opName, shape.shape, color, this.operationConfig);
                                             if (outputs) {
                                                 this.processState(
                                                     state,
@@ -365,7 +372,7 @@ export class ShapeSolverController {
                                     const colorsToUse = getValidColorsForShape(shape.shape, targetShapeColorMap);
                                     for (const color of colorsToUse) {
                                         try {
-                                            const outputs = this.solver.getCachedOperation(opName, shape.shape, color);
+                                            const outputs = this.solver.getCachedOperation(opName, shape.shape, color, this.operationConfig);
                                             if (outputs) {
                                                 // Check if painting this shape with this color is useful
                                                 const paintedShape = outputs[0];
@@ -414,7 +421,7 @@ export class ShapeSolverController {
                                 if (opName === 'stacker') {
                                     // Original order
                                     try {
-                                        const outputs1 = this.solver.getCachedOperation(opName, ...inputs);
+                                        const outputs1 = this.solver.getCachedOperation(opName, ...inputs, this.operationConfig);
                                         if (outputs1) {
                                             this.processState(state, combo, op, outputs1, null, nextLevel, visited, depth);
                                         }
@@ -423,7 +430,7 @@ export class ShapeSolverController {
                                     // Reversed order
                                     try {
                                         const reversedCombo = [...combo].reverse();
-                                        const outputs2 = this.solver.getCachedOperation(opName, ...reversedCombo.map(s => s.shape));
+                                        const outputs2 = this.solver.getCachedOperation(opName, ...reversedCombo.map(s => s.shape), this.operationConfig);
                                         if (outputs2) {
                                             this.processState(state, reversedCombo, op, outputs2, null, nextLevel, visited, depth);
                                         }
@@ -431,7 +438,7 @@ export class ShapeSolverController {
                                 } else {
                                     // Default handling
                                     try {
-                                        const outputs = this.solver.getCachedOperation(opName, ...inputs);
+                                        const outputs = this.solver.getCachedOperation(opName, ...inputs, this.operationConfig);
                                         if (outputs) {
                                             // Quick check: does this operation produce something useful?
                                             const hasPromising = outputs.some(output =>
@@ -484,7 +491,7 @@ export class ShapeSolverController {
             }
             return result;
         }
-        return this.getCombininations(arr, k); // Fallback for k > 2
+        return this.getCombinations(arr, k); // Fallback for k > 2
     }
 
     getCombinations(arr, k) {

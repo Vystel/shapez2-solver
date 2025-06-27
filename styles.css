@@ -27,7 +27,8 @@ body {
 }
 
 #sidebar {
-    width: 350px;
+    width: 20vw;
+    min-width: 225px;
     height: 100vh;
     background-color: var(--bg-sidebar);
     padding: 20px;
@@ -130,7 +131,6 @@ select {
     font-family: var(--font-primary);
     white-space: pre-wrap;
     box-sizing: border-box;
-    margin-bottom: 15px;
 }
 
 /* Buttons */
@@ -149,7 +149,7 @@ button:hover {
     background-color: var(--color-hover);
 }
 
-.bigButton {
+.wide {
     width: 100%;
     margin: 5px 0px;
 }
@@ -262,7 +262,6 @@ button:hover {
 }
 
 input[type="number"] {
-    width: 120px;
     padding: 8px 12px;
     background-color: var(--bg-input);
     color: var(--color-text);
@@ -270,6 +269,7 @@ input[type="number"] {
     border-radius: 5px;
     font-family: var(--font-mono);
     font-size: 14px;
+    box-sizing: border-box;
 }
 
 input[type="number"]:focus {

@@ -1,4 +1,5 @@
 // Special thanks to https://github.com/Loupau38/loupau38.github.io/blob/main/assets/scripts/shapeViewer.js
+import { getCurrentColorMode } from './main.js';
 
 // exported constants
 export const SHAPES_CONFIG = {
@@ -27,7 +28,7 @@ export const baseColors = {
 };
 
 // internal constants
-const colorValues = {
+export const colorValues = {
     "rgb" : {
         "u" : baseColors["u"],
         "r" : baseColors["r"],
@@ -349,6 +350,11 @@ export function renderShape(context, size, shapeCode, shapesConfig = SHAPES_CONF
         }
     }
 
+    if (!colorMode) {
+        const colorModeSelect = document.getElementById('color-mode-select');
+        colorMode = colorModeSelect ? colorModeSelect.value : COLOR_MODES.RGB;
+    }
+
     context.save();
     context.scale(size, size);
     context.clearRect(0, 0, 1, 1);
@@ -404,11 +410,12 @@ export function renderShape(context, size, shapeCode, shapesConfig = SHAPES_CONF
 }
 
 // Utility stuff
-export function createShapeCanvas(shapeCode, size = 100, shapesConfig = SHAPES_CONFIG.QUAD, colorMode = COLOR_MODES.RGB) {
+export function createShapeCanvas(shapeCode, size = 100, shapesConfig = SHAPES_CONFIG.QUAD) {
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
+    const colorMode = getCurrentColorMode();
     renderShape(ctx, size, shapeCode, shapesConfig, colorMode);
     return canvas;
 }

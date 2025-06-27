@@ -1,11 +1,24 @@
+// ==================== Imports ====================
+import { colorValues } from './shapeRendering.js';
+import { getCurrentColorMode } from './main.js';
+import { ShapeOperationConfig } from './shapeOperations.js'; // Import ShapeOperationConfig
+
 // ==================== Global State ====================
-let cyInstance = null;
+export let cyInstance = null;
 
 // ==================== Graph Rendering Functions ====================
 export function renderGraph(solution, operations, baseColors, createShapeCanvas) {
     const container = document.getElementById('graph-container');
     container.innerHTML = '';
     if (!solution) return;
+
+    // Get current color mode
+    const colorModeSelect = document.getElementById('color-mode-select');
+    const colorMode = colorModeSelect ? colorModeSelect.value : COLOR_MODES.RGB;
+
+    // Retrieve maxShapeLayers from the input element for rendering
+    const maxShapeLayers = parseInt(document.getElementById('max-layers').value) || 4;
+    const renderConfig = new ShapeOperationConfig(maxShapeLayers);
 
     // Parse solution to build ID into shape mapping
     const idToShape = {};
@@ -28,15 +41,15 @@ export function renderGraph(solution, operations, baseColors, createShapeCanvas)
             // Record new shapes (for painter, first input is shape)
             if (op === 'paint') {
                 idToShape[outputs[0]] = operations.painter.apply(
-                    idToShape[inputs[0]], inputs[1]
+                    idToShape[inputs[0]], inputs[1], renderConfig
                 )[0];
             } else if (op === 'crystal') {
                 idToShape[outputs[0]] = operations.crystalGenerator.apply(
-                    idToShape[inputs[0]], inputs[1]
+                    idToShape[inputs[0]], inputs[1], renderConfig
                 )[0];
             } else {
                 const inputShapes = inputs.filter(inp => idToShape[inp]).map(inp => idToShape[inp]);
-                const outputShapes = applyOperation(op, operations, ...inputShapes); // Use local helper
+                const outputShapes = applyOperation(op, operations, renderConfig, ...inputShapes);
                 outputs.forEach((outId, i) => {
                     if (outputShapes[i]) idToShape[outId] = outputShapes[i];
                 });
@@ -76,18 +89,11 @@ export function renderGraph(solution, operations, baseColors, createShapeCanvas)
             let nodeClasses = 'op';
             let backgroundColor = '#000';
 
-            if (op === 'paint') {
+            if (op === 'paint' || op === 'crystal') {
                 opLabel += ` (${inputs[1]})`;
-                // Get color from baseColors using the color input
-                if (baseColors[inputs[1]]) {
-                    backgroundColor = baseColors[inputs[1]];
-                    nodeClasses += ' colored-op';
-                }
-            } else if (op === 'crystal') {
-                opLabel += ` (${inputs[1]})`;
-                // Get color from baseColors using the color input
-                if (baseColors[inputs[1]]) {
-                    backgroundColor = baseColors[inputs[1]];
+                const colorMode = getCurrentColorMode();
+                if (colorValues[colorMode][inputs[1]]) {
+                    backgroundColor = colorValues[colorMode][inputs[1]];
                     nodeClasses += ' colored-op';
                 }
             }
@@ -214,16 +220,16 @@ export function renderGraph(solution, operations, baseColors, createShapeCanvas)
 }
 
 // Helper function to apply operations for graph rendering
-function applyOperation(opName, operationsRef, ...shapes) {
+function applyOperation(opName, operationsRef, config, ...shapes) {
     switch (opName) {
-        case 'hcut': return operationsRef.halfDestroyer.apply(shapes[0]);
-        case 'cut': return operationsRef.cutter.apply(shapes[0]);
-        case 'swap': return operationsRef.swapper.apply(...shapes);
-        case 'r90cw': return operationsRef.rotateCW.apply(shapes[0]);
-        case 'r90ccw': return operationsRef.rotateCCW.apply(shapes[0]);
-        case 'r180': return operationsRef.rotate180.apply(shapes[0]);
-        case 'stack': return operationsRef.stacker.apply(...shapes);
-        case 'pin': return operationsRef.pinPusher.apply(shapes[0]);
+        case 'hcut': return operationsRef.halfDestroyer.apply(shapes[0], config);
+        case 'cut': return operationsRef.cutter.apply(shapes[0], config);
+        case 'swap': return operationsRef.swapper.apply(...shapes, config);
+        case 'r90cw': return operationsRef.rotateCW.apply(shapes[0], config);
+        case 'r90ccw': return operationsRef.rotateCCW.apply(shapes[0], config);
+        case 'r180': return operationsRef.rotate180.apply(shapes[0], config);
+        case 'stack': return operationsRef.stacker.apply(...shapes, config);
+        case 'pin': return operationsRef.pinPusher.apply(shapes[0], config);
         case 'paint': return []; // Handled separately
         case 'crystal': return []; // Handled separately
         default: return [];

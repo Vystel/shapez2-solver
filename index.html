@@ -34,15 +34,35 @@
                 <button id="add-shape-btn">+</button>
             </div>
             <div id="starting-shapes"></div>
-            <button id="extract-shapes-btn" class="bigButton">Auto</button>
+            <button id="extract-shapes-btn" class="wide">Auto</button>
         </div>
 
         <div id="options-content" class="tab-content">
+            <h2>Shape Options</h2> 
+
+            <div class="option-group">
+                <label for="max-layers">Max Layers</label>
+                <input type="number" id="max-layers" class="wide" value="4">
+                <p class="option-desc">Maximum number of layers a shape can have. Most scenarios have a cap of 4 layers, but the Insane scenario increases the limit to 5.</p>
+            </div>
+
+            <div class="option-group">
+                <label for="color-mode-select">Color Mode</label>
+                <select id="color-mode-select" class="wide">
+                    <option value="rgb">RGB</option>
+                    <option value="ryb">RYB</option>
+                    <option value="cmyk">CMYK</option>
+                </select>
+                <p class="option-desc">Choose how you want colors to be displayed on shapes.</p>
+            </div>
+
+            <div style="width: 100%; height: 1px; background-color: gray; margin: 20px 0;"></div>
+
             <h2>Solver Options</h2>
 
             <div class="option-group">
                 <label for="max-states-per-level">Max States Per Level</label>
-                <input type="number" id="max-states-per-level" value="2000">
+                <input type="number" id="max-states-per-level" class="wide" value="2000">
                 <p class="option-desc">Smaller values solve faster but may be less accurate or fail. Larger values take more time but are more likely to succeed and give better results.</p>
             </div>
 

@@ -1,8 +1,8 @@
 // ==================== Imports ====================
-import { createShapeCanvas, isValidShapeCode, SHAPES_CONFIG, COLOR_MODES } from './shapeRendering.js';
+import { createShapeCanvas, isValidShapeCode, SHAPES_CONFIG, COLOR_MODES, colorValues } from './shapeRendering.js';
 import { Shape, ShapePart, NOTHING_CHAR, PIN_CHAR, CRYSTAL_CHAR } from './shapeOperations.js';
 import { ShapeSolver, ShapeSolverController, operations } from './shapeSolver.js';
-import { getCyInstance } from './operationGraph.js';
+import { cyInstance, getCyInstance } from './operationGraph.js';
 
 // ==================== Global State ====================
 export let currentSolverController = null;
@@ -17,8 +17,12 @@ function createShapeElement(shapeCode) {
     const container = document.createElement('div');
     container.className = 'shape-display';
 
-    const canvas = createShapeCanvas(shapeCode, 40, SHAPES_CONFIG.QUAD, COLOR_MODES.RGB);
+    // Create canvas with current color mode
+    const canvas = createShapeCanvas(shapeCode, 40, SHAPES_CONFIG.QUAD, getCurrentColorMode());
     canvas.className = 'shape-canvas';
+    
+    // Store shape code as data attribute for easy refresh
+    canvas.dataset.shapeCode = shapeCode;
 
     const label = document.createElement('span');
     label.className = 'shape-label';
@@ -28,6 +32,52 @@ function createShapeElement(shapeCode) {
     container.appendChild(label);
 
     return container;
+}
+
+export function getCurrentColorMode() {
+    const colorModeSelect = document.getElementById('color-mode-select');
+    return colorModeSelect ? colorModeSelect.value : COLOR_MODES.RGB;
+}
+
+function refreshShapeColors() {
+    const graphContainer = document.getElementById('graph-container');
+    if (graphContainer && cyInstance) {
+        // Refresh shape nodes
+        cyInstance.nodes('.shape').forEach(node => {
+            const shapeCode = node.data('label');
+            const newCanvas = createShapeCanvas(shapeCode, 120);
+            node.data('shapeCanvas', newCanvas.toDataURL());
+            node.trigger('style');
+        });
+
+        // Refresh operation nodes (paint and crystal)
+        cyInstance.nodes('.colored-op').forEach(node => {
+            const operationData = node.data('label').split(' ');
+            if (operationData.length > 1) {
+                // Extract the color from the label
+                const color = operationData[1].replace(/[()]/g, '');
+                const colorMode = getCurrentColorMode();
+                
+                if (color && colorValues[colorMode][color]) {
+                    // Update the node's background color
+                    node.style({
+                        'background-color': colorValues[colorMode][color]
+                    });
+                }
+            }
+        });
+
+        // Refresh shape canvas
+        document.querySelectorAll('.shape-canvas').forEach(canvas => {
+            const shapeCode = canvas.dataset.shapeCode;
+            if (shapeCode) {
+                const newCanvas = createShapeCanvas(shapeCode, 40, SHAPES_CONFIG.QUAD, getCurrentColorMode());
+                canvas.replaceWith(newCanvas);
+                newCanvas.className = 'shape-canvas';
+                newCanvas.dataset.shapeCode = shapeCode;
+            }
+        });
+    }
 }
 
 // ==================== Utility Functions ====================
@@ -190,6 +240,11 @@ document.querySelectorAll('.tab-button').forEach(button => {
 // ==================== Initialization ====================
 document.addEventListener('DOMContentLoaded', () => {
     initializeDefaultShapes();
+
+    const colorModeSelect = document.getElementById('color-mode-select');
+    if (colorModeSelect) {
+        colorModeSelect.addEventListener('change', refreshShapeColors);
+    }
 });
 
 // ==================== Main Button Logic ====================
