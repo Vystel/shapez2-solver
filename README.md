@@ -7,7 +7,7 @@ This is a web-based tool for the game "Shapez 2" that tries to find the most eff
 ### How to use:
 
 - Type the code for the shape you want to make.
-- List the starting shapes you have available and want the solver to work with.
+- Add the starting shapes you have available and want the solver to work with.
 - Press solve to start finding a valid production chain. To make calculations quicker, try adjusting the options!
 - If a solution is found, the operation sequence will be displayed as a flowchart.
 
