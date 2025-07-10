@@ -184,6 +184,57 @@ export class ShapeSolver {
         this.targetComponents = this.analyzeShapeComponents(this.targetShape);
     }
 
+    // Get all rotations of a shape
+    getAllRotations(shapeCode) {
+        const rotations = new Set();
+        const shape = Shape.fromShapeCode(shapeCode);
+        const config = new ShapeOperationConfig(this.maxShapeLayers);
+        
+        // Original shape
+        rotations.add(shapeCode);
+        
+        try {
+            // 90° clockwise
+            const rot90 = rotate90CW(shape, config);
+            if (rot90.length > 0) {
+                rotations.add(rot90[0].toShapeCode());
+            }
+            
+            // 180°
+            const rot180 = rotate180(shape, config);
+            if (rot180.length > 0) {
+                rotations.add(rot180[0].toShapeCode());
+            }
+            
+            // 270° clockwise (90° counter-clockwise)
+            const rot270 = rotate90CCW(shape, config);
+            if (rot270.length > 0) {
+                rotations.add(rot270[0].toShapeCode());
+            }
+        } catch (e) {
+            // If rotation fails, just return the original shape
+            console.warn('Rotation failed for shape:', shapeCode);
+        }
+        
+        return Array.from(rotations);
+    }
+
+    // Check if any rotation of shape1 matches any rotation of shape2
+    shapesMatchAnyOrientation(shape1, shape2) {
+        if (shape1 === shape2) return true;
+        
+        const rotations1 = this.getAllRotations(shape1);
+        const rotations2 = this.getAllRotations(shape2);
+        
+        for (const rot1 of rotations1) {
+            if (rotations2.includes(rot1)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
     // Analyze shape components for heuristic scoring
     analyzeShapeComponents(shape) {
         const layers = shape.split(':');
@@ -318,8 +369,17 @@ export class ShapeSolverController {
                 for (const state of batch) {
                     // Check if we've found the solution
                     const preventWaste = document.getElementById('prevent-waste-checkbox')?.checked;
+                    const ignoreOrientation = document.getElementById('ignore-orientation-checkbox')?.checked;
                     const nonEmptyShapes = state.availableShapes.filter(s => !/^[-]+$/.test(s.shape));
-                    const matchingTargets = nonEmptyShapes.filter(s => s.shape === this.solver.targetShape);
+
+                    let matchingTargets;
+                    if (!ignoreOrientation) {
+                        // Orientation-agnostic match (checkbox NOT checked)
+                        matchingTargets = nonEmptyShapes.filter(s => this.solver.shapesMatchAnyOrientation(s.shape, this.solver.targetShape));
+                    } else {
+                        // Exact orientation match (checkbox checked)
+                        matchingTargets = nonEmptyShapes.filter(s => s.shape === this.solver.targetShape);
+                    }
 
                     const isGoalState = preventWaste
                         ? nonEmptyShapes.length > 0 && matchingTargets.length === nonEmptyShapes.length
@@ -329,7 +389,7 @@ export class ShapeSolverController {
                         const elapsed = (performance.now() - t0) / 1000;
                         this.statusElement.textContent = `Solved in ${elapsed.toFixed(2)}s at depth ${depth}, ${visited.size} states`;
                         renderGraph(state.solution, operations, baseColors, createShapeCanvas);
-                        this.cleanup(); // Call cleanup to reset UI and global state
+                        this.cleanup();
                         return;
                     }
 
