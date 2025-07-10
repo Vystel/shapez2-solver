@@ -419,14 +419,3 @@ export function createShapeCanvas(shapeCode, size = 100, shapesConfig = SHAPES_C
     renderShape(ctx, size, shapeCode, shapesConfig, colorMode);
     return canvas;
 }
-
-export function isValidShapeCode(shapeCode) {
-    if (!shapeCode || typeof shapeCode !== 'string') return false;
-    const layers = shapeCode.split(':');
-    if (layers.length === 0) return false;
-    
-    const partCount = layers[0].length / 2;
-    if (partCount !== Math.floor(partCount)) return false;
-    
-    return layers.every(layer => layer.length === layers[0].length);
-}

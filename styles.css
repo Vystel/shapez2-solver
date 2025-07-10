@@ -107,9 +107,7 @@ p {
 
 
 /* Inputs */
-input[type="text"],
-#new-shape-input,
-#target-shape {
+input[type="text"] {
     width: 100%;
     padding: 8px;
     background-color: var(--bg-input);

@@ -1,8 +1,9 @@
 // ==================== Imports ====================
-import { createShapeCanvas, isValidShapeCode, SHAPES_CONFIG, COLOR_MODES, colorValues } from './shapeRendering.js';
+import { createShapeCanvas, SHAPES_CONFIG, COLOR_MODES, colorValues } from './shapeRendering.js';
 import { Shape, ShapePart, NOTHING_CHAR, PIN_CHAR, CRYSTAL_CHAR } from './shapeOperations.js';
 import { ShapeSolver, ShapeSolverController, operations } from './shapeSolver.js';
 import { cyInstance, getCyInstance } from './operationGraph.js';
+import { isValidShapeCode, validateShapeCode } from './shapeValidation.js';
 
 // ==================== Global State ====================
 export let currentSolverController = null;
@@ -20,7 +21,7 @@ function createShapeElement(shapeCode) {
     // Create canvas with current color mode
     const canvas = createShapeCanvas(shapeCode, 40, SHAPES_CONFIG.QUAD, getCurrentColorMode());
     canvas.className = 'shape-canvas';
-    
+
     // Store shape code as data attribute for easy refresh
     canvas.dataset.shapeCode = shapeCode;
 
@@ -57,7 +58,7 @@ function refreshShapeColors() {
                 // Extract the color from the label
                 const color = operationData[1].replace(/[()]/g, '');
                 const colorMode = getCurrentColorMode();
-                
+
                 if (color && colorValues[colorMode][color]) {
                     // Update the node's background color
                     node.style({
@@ -156,12 +157,39 @@ function extractLayersByColor(shapeCode) {
     );
 }
 
+// ==================== Enhanced Validation Functions ====================
+function showValidationErrors(shapeCode, context = 'shape') {
+    const validation = validateShapeCode(shapeCode);
+    if (!validation.isValid) {
+        const errorMessage = `Invalid ${context} code: ${shapeCode}\n\nErrors:\n${validation.errors.join('\n')}`;
+        alert(errorMessage);
+        return false;
+    }
+    return true;
+}
+
+function validateShapeInput(input, context = 'shape') {
+    const shapeCode = input.value.trim();
+
+    if (!shapeCode) {
+        alert(`Please enter a ${context} code.`);
+        return false;
+    }
+
+    return showValidationErrors(shapeCode, context);
+}
+
 // ==================== Shape Input Management ====================
 document.getElementById('add-shape-btn').addEventListener('click', () => {
     const input = document.getElementById('new-shape-input');
     const shapeCode = input.value.trim();
-    if (!shapeCode || !isValidShapeCode(shapeCode)) {
-        alert('Invalid shape code. Please enter a valid shape code.');
+
+    if (!shapeCode) {
+        alert('Please enter a shape code.');
+        return;
+    }
+
+    if (!showValidationErrors(shapeCode, 'starting shape')) {
         return;
     }
 
@@ -191,34 +219,42 @@ document.getElementById('extract-shapes-btn').addEventListener('click', () => {
     const targetInput = document.getElementById('target-shape');
     const shapeCode = targetInput.value.trim();
 
-    if (!shapeCode || !isValidShapeCode(shapeCode)) {
-        alert('Invalid target shape code. Please enter a valid shape code.');
+    if (!shapeCode) {
+        alert('Please enter a target shape code.');
         return;
     }
 
-    // Clear existing starting shapes
-    const startingShapesContainer = document.getElementById('starting-shapes');
-    startingShapesContainer.innerHTML = '';
+    if (!showValidationErrors(shapeCode, 'target shape')) {
+        return;
+    }
 
-    // Extract shape variants
-    const extractedShapes = extractLayersByColor(shapeCode);
+    try {
+        // Clear existing starting shapes
+        const startingShapesContainer = document.getElementById('starting-shapes');
+        startingShapesContainer.innerHTML = '';
 
-    // Create and append shape elements
-    extractedShapes.forEach(shapeVariant => {
-        const shapeItem = document.createElement('div');
-        shapeItem.className = 'shape-item';
+        // Extract shape variants
+        const extractedShapes = extractLayersByColor(shapeCode);
 
-        const shapeDisplay = createShapeElement(shapeVariant);
-        const removeBtn = document.createElement('span');
-        removeBtn.className = 'remove-shape';
-        removeBtn.textContent = '×';
-        removeBtn.setAttribute('data-shape', shapeVariant);
+        // Create and append shape elements
+        extractedShapes.forEach(shapeVariant => {
+            const shapeItem = document.createElement('div');
+            shapeItem.className = 'shape-item';
 
-        shapeItem.appendChild(shapeDisplay);
-        shapeItem.appendChild(removeBtn);
+            const shapeDisplay = createShapeElement(shapeVariant);
+            const removeBtn = document.createElement('span');
+            removeBtn.className = 'remove-shape';
+            removeBtn.textContent = '×';
+            removeBtn.setAttribute('data-shape', shapeVariant);
 
-        startingShapesContainer.appendChild(shapeItem);
-    });
+            shapeItem.appendChild(shapeDisplay);
+            shapeItem.appendChild(removeBtn);
+
+            startingShapesContainer.appendChild(shapeItem);
+        });
+    } catch (error) {
+        alert(`Failed to extract shapes: ${error.message}`);
+    }
 });
 
 // ==================== Tab Switching Logic ====================
@@ -260,19 +296,43 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
         alert('Please enter a target shape code.');
         return;
     }
-    if (!isValidShapeCode(targetShape)) {
-        alert('Invalid target shape code. Please enter a valid shape code.');
+
+    if (!showValidationErrors(targetShape, 'target shape')) {
         return;
     }
 
     const startingShapes = getStartingShapes();
+
+    // Validate all starting shapes
+    for (const shapeCode of startingShapes) {
+        if (!isValidShapeCode(shapeCode)) {
+            if (!showValidationErrors(shapeCode, 'starting shape')) {
+                return;
+            }
+        }
+    }
+
+    if (startingShapes.length === 0) {
+        alert('Please add at least one starting shape.');
+        return;
+    }
+
     const enabledOperations = getEnabledOperations();
 
-    const solver = new ShapeSolver(startingShapes, targetShape, enabledOperations);
-    currentSolverController = new ShapeSolverController(solver, resetSolverUIState);
-    currentSolverController.start();
+    if (Object.keys(enabledOperations).length === 0) {
+        alert('Please enable at least one operation.');
+        return;
+    }
 
-    document.getElementById('calculate-btn').textContent = "Cancel";
+    try {
+        const solver = new ShapeSolver(startingShapes, targetShape, enabledOperations);
+        currentSolverController = new ShapeSolverController(solver, resetSolverUIState);
+        currentSolverController.start();
+
+        document.getElementById('calculate-btn').textContent = "Cancel";
+    } catch (error) {
+        alert(`Failed to start solver: ${error.message}`);
+    }
 });
 
 document.getElementById('snapshot-btn').addEventListener('click', async () => {
