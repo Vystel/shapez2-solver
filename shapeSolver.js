@@ -159,8 +159,8 @@ function getCrystalColorsInShape(shape) {
         }
     }
 
-    // Return ["r"] if no crystal colors found, otherwise return the colors
-    return crystalColors.size > 0 ? Array.from(crystalColors) : ["r"];
+    // Return ["u"] if no crystal colors found, otherwise return the colors
+    return crystalColors.size > 0 ? Array.from(crystalColors) : ["u"];
 }
 
 // ==================== ShapeSolver Class ====================
