@@ -187,51 +187,51 @@ export class ShapeSolver {
     // Get all rotations of a shape
     getAllRotations(shapeCode) {
         const rotations = new Set();
-        const shape = Shape.fromShapeCode(shapeCode);
+        let currentShape = Shape.fromShapeCode(shapeCode);
         const config = new ShapeOperationConfig(this.maxShapeLayers);
         
-        // Original shape
-        rotations.add(shapeCode);
-        
+        rotations.add(currentShape.toShapeCode());
+
         try {
-            // 90° clockwise
-            const rot90 = rotate90CW(shape, config);
-            if (rot90.length > 0) {
-                rotations.add(rot90[0].toShapeCode());
-            }
-            
-            // 180°
-            const rot180 = rotate180(shape, config);
-            if (rot180.length > 0) {
-                rotations.add(rot180[0].toShapeCode());
-            }
-            
-            // 270° clockwise (90° counter-clockwise)
-            const rot270 = rotate90CCW(shape, config);
-            if (rot270.length > 0) {
-                rotations.add(rot270[0].toShapeCode());
+            const partAmount = currentShape.layers.length > 0 ? currentShape.layers[0].length : 0;
+            for (let i = 0; i < partAmount - 1; i++) {
+
+                const rotatedShapes = rotate90CW(currentShape, config);
+                if (rotatedShapes.length > 0) {
+
+                    currentShape = rotatedShapes[0];
+
+                    rotations.add(currentShape.toShapeCode());
+                } else {
+
+                    console.warn('Rotation failed during iterative rotation for shape:', currentShape.toShapeCode());
+                    break;
+                }
             }
         } catch (e) {
-            // If rotation fails, just return the original shape
-            console.warn('Rotation failed for shape:', shapeCode);
+            console.error('Error during getAllRotations:', e);
+
+            if (rotations.size === 0) {
+                rotations.add(shapeCode);
+            }
         }
-        
+
         return Array.from(rotations);
     }
 
     // Check if any rotation of shape1 matches any rotation of shape2
     shapesMatchAnyOrientation(shape1, shape2) {
         if (shape1 === shape2) return true;
-        
+
         const rotations1 = this.getAllRotations(shape1);
         const rotations2 = this.getAllRotations(shape2);
-        
+
         for (const rot1 of rotations1) {
             if (rotations2.includes(rot1)) {
                 return true;
             }
         }
-        
+
         return false;
     }
 
