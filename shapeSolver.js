@@ -369,16 +369,16 @@ export class ShapeSolverController {
                 for (const state of batch) {
                     // Check if we've found the solution
                     const preventWaste = document.getElementById('prevent-waste-checkbox')?.checked;
-                    const ignoreOrientation = document.getElementById('ignore-orientation-checkbox')?.checked;
+                    const matchExactOrientation = document.getElementById('orientation-sensitivity-checkbox')?.checked;
                     const nonEmptyShapes = state.availableShapes.filter(s => !/^[-]+$/.test(s.shape));
 
                     let matchingTargets;
-                    if (!ignoreOrientation) {
-                        // Orientation-agnostic match (checkbox NOT checked)
-                        matchingTargets = nonEmptyShapes.filter(s => this.solver.shapesMatchAnyOrientation(s.shape, this.solver.targetShape));
-                    } else {
+                    if (matchExactOrientation) {
                         // Exact orientation match (checkbox checked)
                         matchingTargets = nonEmptyShapes.filter(s => s.shape === this.solver.targetShape);
+                    } else {
+                        // Orientation-agnostic match (checkbox NOT checked)
+                        matchingTargets = nonEmptyShapes.filter(s => this.solver.shapesMatchAnyOrientation(s.shape, this.solver.targetShape));
                     }
 
                     const isGoalState = preventWaste
