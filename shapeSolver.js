@@ -173,6 +173,7 @@ export class ShapeSolver {
         this.operations = operations;
         this.nextId = startingShapes.length + 1;
         this.operationCache = new Map();
+        this.maxStatesPerLevel = parseInt(document.getElementById('max-states-per-level').value) || Infinity;
         this.maxShapeLayers = parseInt(document.getElementById('max-layers').value) || 4;
         this.targetLayers = this.targetShape.split(':');
         this.targetComponents = this.analyzeShapeComponents(this.targetShape);
