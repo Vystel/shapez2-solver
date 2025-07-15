@@ -7,14 +7,10 @@ import { ShapeOperationConfig } from './shapeOperations.js'; // Import ShapeOper
 export let cyInstance = null;
 
 // ==================== Graph Rendering Functions ====================
-export function renderGraph(solution, operations, baseColors, createShapeCanvas) {
+export function renderGraph(solution, operations, createShapeCanvas) {
     const container = document.getElementById('graph-container');
     container.innerHTML = '';
     if (!solution) return;
-
-    // Get current color mode
-    const colorModeSelect = document.getElementById('color-mode-select');
-    const colorMode = colorModeSelect ? colorModeSelect.value : COLOR_MODES.RGB;
 
     // Retrieve maxShapeLayers from the input element for rendering
     const maxShapeLayers = parseInt(document.getElementById('max-layers').value) || 4;

@@ -131,7 +131,6 @@ export function validateAndParse(shapeCode) {
     }
     
     try {
-        // Assuming you have the Shape class available
         const shape = Shape.fromShapeCode(shapeCode);
         return {
             isValid: true,

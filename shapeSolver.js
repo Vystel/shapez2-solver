@@ -1,6 +1,6 @@
 // ==================== Imports ====================
 import { Shape, CRYSTAL_CHAR, UNPAINTABLE_SHAPES, cut, halfCut, rotate90CW, rotate90CCW, rotate180, swapHalves, stack, topPaint, pushPin, genCrystal, ShapeOperationConfig } from './shapeOperations.js'; // Import ShapeOperationConfig
-import { createShapeCanvas, baseColors } from './shapeRendering.js';
+import { createShapeCanvas } from './shapeRendering.js';
 import { renderGraph } from './operationGraph.js';
 
 // ==================== Operation Definitions ====================
@@ -351,7 +351,7 @@ export class ShapeSolverController {
                     if (isGoalState) {
                         const elapsed = (performance.now() - t0) / 1000;
                         this.statusElement.textContent = `Solved in ${elapsed.toFixed(2)}s at depth ${depth}, ${visited.size} states`;
-                        renderGraph(state.solution, operations, baseColors, createShapeCanvas);
+                        renderGraph(state.solution, operations, createShapeCanvas);
                         this.cleanup();
                         return;
                     }
