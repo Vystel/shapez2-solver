@@ -83,8 +83,7 @@ function refreshShapeColors() {
 
 // ==================== Utility Functions ====================
 function getStartingShapes() {
-    return Array.from(document.querySelectorAll('#starting-shapes .shape-item .shape-label'))
-        .map(label => label.textContent);
+    return Array.from(document.querySelectorAll('#starting-shapes .shape-item .shape-label')).map(label => label.textContent);
 }
 
 function initializeDefaultShapes() {
@@ -152,9 +151,7 @@ function extractLayersByColor(shapeCode) {
     });
 
     // Convert each ShapePart[] into a string
-    return groupedLayers.map(layer =>
-        layer.map(part => part.shape + part.color).join('')
-    );
+    return groupedLayers.map(layer => layer.map(part => part.shape + part.color).join(''));
 }
 
 // ==================== Enhanced Validation Functions ====================
@@ -166,17 +163,6 @@ function showValidationErrors(shapeCode, context = 'shape') {
         return false;
     }
     return true;
-}
-
-function validateShapeInput(input, context = 'shape') {
-    const shapeCode = input.value.trim();
-
-    if (!shapeCode) {
-        alert(`Please enter a ${context} code.`);
-        return false;
-    }
-
-    return showValidationErrors(shapeCode, context);
 }
 
 // ==================== Shape Input Management ====================

@@ -1,20 +1,22 @@
 // ==================== Imports ====================
-import { Shape, CRYSTAL_CHAR, UNPAINTABLE_SHAPES, cut, halfCut, rotate90CW, rotate90CCW, rotate180, swapHalves, stack, topPaint, pushPin, genCrystal, ShapeOperationConfig } from './shapeOperations.js'; // Import ShapeOperationConfig
+import { Shape, CRYSTAL_CHAR, UNPAINTABLE_SHAPES, cut, halfCut, rotate90CW, rotate90CCW, rotate180, swapHalves, stack, topPaint, pushPin, genCrystal, ShapeOperationConfig } from './shapeOperations.js';
 import { createShapeCanvas } from './shapeRendering.js';
 import { renderGraph } from './operationGraph.js';
 
-// ==================== Operation Definitions ====================
+// Applies an operation to a single shape
 const applyOp = (fn, shapeCode, ...args) => {
     const shape = Shape.fromShapeCode(shapeCode);
     return fn(shape, ...args).map(s => s.toShapeCode());
 };
 
+// Applies an operation to two shapes
 const applyOp2 = (fn, code1, code2, ...args) => {
     const shape1 = Shape.fromShapeCode(code1);
     const shape2 = Shape.fromShapeCode(code2);
     return fn(shape1, shape2, ...args).map(s => s.toShapeCode());
 };
 
+// Operation Definitions
 export const operations = {
     cutter: {
         inputs: 1,
@@ -68,64 +70,6 @@ export const operations = {
     }
 };
 
-// ==================== Utility Functions ====================
-// Gets all colors present in a given shape, mapped by the shape of the part
-function getColorsInShape(shape) {
-    const shapeColorMap = new Map();
-
-    for (const layer of shape.layers) {
-        for (const part of layer) {
-            // Only consider paintable shapes that aren't uncolored
-            if (!UNPAINTABLE_SHAPES.includes(part.shape) && part.color !== "u") {
-                if (!shapeColorMap.has(part.shape)) {
-                    shapeColorMap.set(part.shape, new Set());
-                }
-                shapeColorMap.get(part.shape).add(part.color);
-            }
-        }
-    }
-
-    return shapeColorMap;
-}
-
-// Determines valid colors for painting an input shape based on a target shape's colors
-function getValidColorsForShape(inputShape, targetShapeColorMap) {
-    const validColors = new Set();
-    const inputShapeObj = Shape.fromShapeCode(inputShape);
-
-    for (const layer of inputShapeObj.layers) {
-        for (const part of layer) {
-            // If the part is paintable
-            if (!UNPAINTABLE_SHAPES.includes(part.shape)) {
-                // Get colors for this specific part shape from the target map
-                const colorsForThisShape = targetShapeColorMap.get(part.shape);
-                if (colorsForThisShape) {
-                    colorsForThisShape.forEach(color => validColors.add(color));
-                }
-            }
-        }
-    }
-
-    return Array.from(validColors);
-}
-
-// Gets the colors of crystal parts within a shape
-function getCrystalColorsInShape(shape) {
-    const crystalColors = new Set();
-
-    for (const layer of shape.layers) {
-        for (const part of layer) {
-            // If the part is a crystal
-            if (part.shape === CRYSTAL_CHAR) {
-                crystalColors.add(part.color);
-            }
-        }
-    }
-
-    // Returns the crystal colors or ["u"] if no crystals are found
-    return crystalColors.size > 0 ? Array.from(crystalColors) : ["u"];
-}
-
 export class ShapeSolver {
     constructor(startingShapes, targetShape, operations) {
         this.startingShapes = startingShapes;
@@ -137,6 +81,63 @@ export class ShapeSolver {
         this.maxShapeLayers = parseInt(document.getElementById('max-layers').value) || 4;
         this.targetLayers = this.targetShape.split(':');
         this.targetComponents = this.analyzeShapeComponents(this.targetShape);
+    }
+    
+    // Gets all colors present in a given shape, mapped by the shape of the part
+    getColorsInShape(shape) {
+        const shapeColorMap = new Map();
+
+        for (const layer of shape.layers) {
+            for (const part of layer) {
+                // Only consider paintable shapes that aren't uncolored
+                if (!UNPAINTABLE_SHAPES.includes(part.shape) && part.color !== "u") {
+                    if (!shapeColorMap.has(part.shape)) {
+                        shapeColorMap.set(part.shape, new Set());
+                    }
+                    shapeColorMap.get(part.shape).add(part.color);
+                }
+            }
+        }
+
+        return shapeColorMap;
+    }
+
+    // Determines valid colors for painting an input shape based on a target shape's colors
+    getValidColorsForShape(inputShape, targetShapeColorMap) {
+        const validColors = new Set();
+        const inputShapeObj = Shape.fromShapeCode(inputShape);
+
+        for (const layer of inputShapeObj.layers) {
+            for (const part of layer) {
+                // If the part is paintable
+                if (!UNPAINTABLE_SHAPES.includes(part.shape)) {
+                    // Get colors for this specific part shape from the target map
+                    const colorsForThisShape = targetShapeColorMap.get(part.shape);
+                    if (colorsForThisShape) {
+                        colorsForThisShape.add(color => validColors.add(color));
+                    }
+                }
+            }
+        }
+
+        return Array.from(validColors);
+    }
+
+    // Gets the colors of crystal parts within a shape
+    getCrystalColorsInShape(shape) {
+        const crystalColors = new Set();
+
+        for (const layer of shape.layers) {
+            for (const part of layer) {
+                // If the part is a crystal
+                if (part.shape === CRYSTAL_CHAR) {
+                    crystalColors.add(part.color);
+                }
+            }
+        }
+
+        // Returns the crystal colors or ["u)"] if no crystals are found
+        return crystalColors.size > 0 ? Array.from(crystalColors) : ["u"];
     }
 
     // Generates all possible orientations of a given shape
@@ -346,12 +347,12 @@ export class ShapeSolverController {
                     const isGoalState = preventWaste
                         ? nonEmptyShapes.length > 0 && matchingTargets.length === nonEmptyShapes.length
                         : matchingTargets.length > 0;
-                    
+
                     // If the goal has been reached, show the solution
                     if (isGoalState) {
                         const elapsed = (performance.now() - t0) / 1000;
                         this.statusElement.textContent = `Solved in ${elapsed.toFixed(2)}s at depth ${depth}, ${visited.size} states`;
-                        renderGraph(state.solution, operations, createShapeCanvas);
+                        renderGraph(state.solution, this.solver.operations, createShapeCanvas);
                         this.cleanup();
                         return;
                     }
@@ -369,7 +370,7 @@ export class ShapeSolverController {
                             const targetShapeObj = Shape.fromShapeCode(this.solver.targetShape);
 
                             if (opName === 'crystalGenerator') {
-                                const colorsToUse = getCrystalColorsInShape(targetShapeObj); // Get target crystal colors
+                                const colorsToUse = this.solver.getCrystalColorsInShape(targetShapeObj); // Get target crystal colors
                                 for (const shape of validShapes) {
                                     for (const color of colorsToUse) {
                                         try {
@@ -393,9 +394,9 @@ export class ShapeSolverController {
                                     }
                                 }
                             } else { // Painter operation
-                                const targetShapeColorMap = getColorsInShape(targetShapeObj); // Get target shape's color map
+                                const targetShapeColorMap = this.solver.getColorsInShape(targetShapeObj); // Get target shape's color map
                                 for (const shape of validShapes) {
-                                    const colorsToUse = getValidColorsForShape(shape.shape, targetShapeColorMap); // Get valid colors for painting
+                                    const colorsToUse = this.solver.getValidColorsForShape(shape.shape, targetShapeColorMap); // Get valid colors for painting
                                     for (const color of colorsToUse) {
                                         try {
                                             // Apply painter operation
@@ -569,9 +570,9 @@ export class ShapeSolverController {
 
         let opStr;
         // Format the operation string based on the operation type
-        if (op === operations.painter) {
+        if (op === this.solver.operations.painter) {
             opStr = op.toString(combo[0].id, extraData[0], newShapes[0].id);
-        } else if (op === operations.crystalGenerator) {
+        } else if (op === this.solver.operations.crystalGenerator) {
             opStr = op.toString(combo[0].id, extraData[0], newShapes[0].id);
         } else {
             opStr = op.toString(...combo.map(s => s.id), ...newShapes.map(s => s.id));
