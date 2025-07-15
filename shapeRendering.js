@@ -62,7 +62,7 @@ export const colorValues = {
 };
 
 const shapeBorderColor = "rgb(35,25,35)";
-const BGCircleColor = "rgba(31,41,61,0.1)";
+const BGCircleColor = "rgba(0,0,0,0)";
 const shadowColor = "rgba(50,50,50,0.5)";
 const pinColor = "rgb(71,69,75)";
 
