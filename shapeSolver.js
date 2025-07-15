@@ -4,106 +4,66 @@ import { createShapeCanvas, baseColors } from './shapeRendering.js';
 import { renderGraph } from './operationGraph.js';
 
 // ==================== Operation Definitions ====================
+const applyOp = (fn, shapeCode, ...args) => {
+    const shape = Shape.fromShapeCode(shapeCode);
+    return fn(shape, ...args).map(s => s.toShapeCode());
+};
+
+const applyOp2 = (fn, code1, code2, ...args) => {
+    const shape1 = Shape.fromShapeCode(code1);
+    const shape2 = Shape.fromShapeCode(code2);
+    return fn(shape1, shape2, ...args).map(s => s.toShapeCode());
+};
+
 export const operations = {
     cutter: {
         inputs: 1,
-        apply: (shapeCode, config) => {
-            const shape = Shape.fromShapeCode(shapeCode);
-            const results = cut(shape, config);
-            return results.map(s => s.toShapeCode());
-        },
+        apply: (shapeCode, config) => applyOp(cut, shapeCode, config),
         toString: (inputId, output1Id, output2Id) => `${inputId}:cut:${output1Id},${output2Id}`
     },
-
     halfDestroyer: {
         inputs: 1,
-        apply: (shapeCode, config) => {
-            const shape = Shape.fromShapeCode(shapeCode);
-            const results = halfCut(shape, config);
-            return results.map(s => s.toShapeCode());
-        },
+        apply: (shapeCode, config) => applyOp(halfCut, shapeCode, config),
         toString: (inputId, outputId) => `${inputId}:hcut:${outputId}`
     },
-
     rotateCW: {
         inputs: 1,
-        apply: (shapeCode, config) => {
-            const shape = Shape.fromShapeCode(shapeCode);
-            const results = rotate90CW(shape, config);
-            return results.map(s => s.toShapeCode());
-        },
+        apply: (shapeCode, config) => applyOp(rotate90CW, shapeCode, config),
         toString: (inputId, outputId) => `${inputId}:r90cw:${outputId}`
     },
-
     rotateCCW: {
         inputs: 1,
-        apply: (shapeCode, config) => {
-            const shape = Shape.fromShapeCode(shapeCode);
-            const results = rotate90CCW(shape, config);
-            return results.map(s => s.toShapeCode());
-        },
+        apply: (shapeCode, config) => applyOp(rotate90CCW, shapeCode, config),
         toString: (inputId, outputId) => `${inputId}:r90ccw:${outputId}`
     },
-
     rotate180: {
         inputs: 1,
-        apply: (shapeCode, config) => {
-            const shape = Shape.fromShapeCode(shapeCode);
-            const results = rotate180(shape, config);
-            return results.map(s => s.toShapeCode());
-        },
+        apply: (shapeCode, config) => applyOp(rotate180, shapeCode, config),
         toString: (inputId, outputId) => `${inputId}:r180:${outputId}`
     },
-
     swapper: {
         inputs: 2,
-        apply: (shapeCode1, shapeCode2, config) => {
-            const shape1 = Shape.fromShapeCode(shapeCode1);
-            const shape2 = Shape.fromShapeCode(shapeCode2);
-            const results = swapHalves(shape1, shape2, config);
-            return results.map(s => s.toShapeCode());
-        },
+        apply: (shapeCode1, shapeCode2, config) => applyOp2(swapHalves, shapeCode1, shapeCode2, config),
         toString: (input1Id, input2Id, output1Id, output2Id) => `${input1Id},${input2Id}:swap:${output1Id},${output2Id}`
     },
-
     stacker: {
         inputs: 2,
-        apply: (bottomShapeCode, topShapeCode, config) => {
-            const bottomShape = Shape.fromShapeCode(bottomShapeCode);
-            const topShape = Shape.fromShapeCode(topShapeCode);
-            const results = stack(bottomShape, topShape, config);
-            return results.map(s => s.toShapeCode());
-        },
+        apply: (bottomShapeCode, topShapeCode, config) => applyOp2(stack, bottomShapeCode, topShapeCode, config),
         toString: (bottomId, topId, outputId) => `${bottomId},${topId}:stack:${outputId}`
     },
-
     painter: {
         inputs: 1,
-        apply: (shapeCode, color, config) => {
-            const shape = Shape.fromShapeCode(shapeCode);
-            const results = topPaint(shape, color, config);
-            return results.map(s => s.toShapeCode());
-        },
+        apply: (shapeCode, color, config) => applyOp(topPaint, shapeCode, color, config),
         toString: (inputId, color, outputId) => `${inputId},${color}:paint:${outputId}`
     },
-
     pinPusher: {
         inputs: 1,
-        apply: (shapeCode, config) => {
-            const shape = Shape.fromShapeCode(shapeCode);
-            const results = pushPin(shape, config);
-            return results.map(s => s.toShapeCode());
-        },
+        apply: (shapeCode, config) => applyOp(pushPin, shapeCode, config),
         toString: (inputId, outputId) => `${inputId}:pin:${outputId}`
     },
-
     crystalGenerator: {
         inputs: 1,
-        apply: (shapeCode, color, config) => {
-            const shape = Shape.fromShapeCode(shapeCode);
-            const results = genCrystal(shape, color, config);
-            return results.map(s => s.toShapeCode());
-        },
+        apply: (shapeCode, color, config) => applyOp(genCrystal, shapeCode, color, config),
         toString: (inputId, color, outputId) => `${inputId},${color}:crystal:${outputId}`
     }
 };
