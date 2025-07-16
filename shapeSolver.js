@@ -114,7 +114,7 @@ export class ShapeSolver {
                     // Get colors for this specific part shape from the target map
                     const colorsForThisShape = targetShapeColorMap.get(part.shape);
                     if (colorsForThisShape) {
-                        colorsForThisShape.add(color => validColors.add(color));
+                        colorsForThisShape.forEach(color => validColors.add(color));
                     }
                 }
             }
