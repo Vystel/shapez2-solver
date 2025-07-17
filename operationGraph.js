@@ -163,6 +163,7 @@ export function renderGraph(solution, operations, createShapeCanvas) {
                     'background-image': 'data(shapeCanvas)',
                     'background-fit': 'contain',
                     'background-opacity': 0.1,
+                    'font-family': 'monospace'
                 }
             },
             {
