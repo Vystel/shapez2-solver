@@ -138,6 +138,10 @@ export function renderGraph(solution, operations, createShapeCanvas) {
         }
     }
 
+    // Get the initial direction from the select element
+    const directionSelect = document.getElementById('direction-select');
+    const selectedDirection = directionSelect ? directionSelect.value : 'LR'; // Default to 'LR' if element not found
+
     // Render graph
     cyInstance = cytoscape({
         container,
@@ -203,7 +207,7 @@ export function renderGraph(solution, operations, createShapeCanvas) {
         ],
         layout: {
             name: 'dagre',
-            rankDir: 'LR',
+            rankDir: selectedDirection,
             nodeSep: 50,
             edgeSep: 10,
             rankSep: 100
