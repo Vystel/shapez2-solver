@@ -1,14 +1,14 @@
 import { createShapeCanvas, createShapeElement, SHAPES_CONFIG, COLOR_MODES, colorValues } from './shapeRendering.js';
 import { Shape, _extractLayersByColor } from './shapeOperations.js';
-import { cyInstance, copyGraphToClipboard, applyGraphLayout } from './operationGraph.js';
+import { cyInstance, copyGraphToClipboard, applyGraphLayout, renderGraph } from './operationGraph.js';
 import { showValidationErrors } from './shapeValidation.js';
-import { shapeSolver } from './shapeSolver.js';
 
 // Changing Color Mode
 export function getCurrentColorMode() {
     const colorModeSelect = document.getElementById('color-mode-select');
     return colorModeSelect ? colorModeSelect.value : COLOR_MODES.RGB;
 }
+
 function refreshShapeColors() {
     const graphContainer = document.getElementById('graph-container');
     if (graphContainer && cyInstance) {
@@ -27,7 +27,6 @@ function refreshShapeColors() {
                 // Extract the color from the label
                 const color = operationData[1].replace(/[()]/g, '');
                 const colorMode = getCurrentColorMode();
-
                 if (color && colorValues[colorMode][color]) {
                     // Update the node's background color
                     node.style({
@@ -174,28 +173,19 @@ document.querySelectorAll('.operation-item').forEach(item => {
     });
 });
 
-// Initialization
-document.addEventListener('DOMContentLoaded', () => {
-    initializeDefaultShapes();
-
-    const colorModeSelect = document.getElementById('color-mode-select');
-    if (colorModeSelect) {
-        colorModeSelect.addEventListener('change', refreshShapeColors);
-    }
-});
-
 // Solve Button
+let solverWorker = null;
 document.getElementById('solve-btn').addEventListener('click', async () => {
     const solveButton = document.getElementById('solve-btn');
+    const statusElement = document.getElementById('status');
     let isSolving = solveButton.textContent === 'Solve';
 
     if (isSolving) {
         // Collect input values from the UI
         const targetShapeCode = document.getElementById('target-shape').value.trim();
         const startingShapeCodes = Array.from(document.querySelectorAll('#starting-shapes .shape-item .shape-label')).map(label => label.textContent);
-        const enabledOperations = Array.from(document.querySelectorAll('#enabled-operations .operation-item.enabled')).map((e=>e.getAttribute('data-operation')));
+        const enabledOperations = Array.from(document.querySelectorAll('#enabled-operations .operation-item.enabled')).map(e => e.getAttribute('data-operation'));
         const maxLayers = parseInt(document.getElementById('max-layers').value) || 4;
-        const colorMode = document.getElementById('color-mode-select').value;
         const maxStatesPerLevel = parseInt(document.getElementById('max-states-per-level').value) || 1000;
         const preventWaste = document.getElementById('prevent-waste').checked;
         const orientationSensitive = document.getElementById('orientation-sensitive').checked;
@@ -212,28 +202,68 @@ document.getElementById('solve-btn').addEventListener('click', async () => {
             }
         }
 
-        // Update UI for solving state
+        // Initialize Web Worker
+        if (solverWorker) {
+            solverWorker.terminate();
+        }
+        solverWorker = new Worker(new URL('./shapeSolver.js', import.meta.url), { type: 'module' });
+
+        // Handle worker messages
+        solverWorker.onmessage = (e) => {
+            const { type, message, result } = e.data;
+            if (type === 'status') {
+                statusElement.textContent = message;
+            } else if (type === 'result') {
+                if (result) {
+                    const { solutionPath, depth, statesExplored } = result;
+
+                    if (solutionPath) {
+                        renderGraph(solutionPath);
+                        const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
+                        statusElement.textContent = `Solved in ${elapsed}s using ${depth} Operations`;
+                    } else {
+                        statusElement.textContent = `No solution found.`;
+                    }
+                }
+                solveButton.textContent = 'Solve';
+                solverWorker.terminate();
+                solverWorker = null;
+            }
+        };
+
+        // Start solving
         solveButton.textContent = 'Cancel';
-
-        // Call the shape solver with collected parameters
-        const solutionPromise = shapeSolver(
-            targetShapeCode,
-            startingShapeCodes,
-            enabledOperations,
-            maxLayers,
-            preventWaste,
-            orientationSensitive,
-            maxStatesPerLevel
-        );
-
-        // Wait for solution and handle result
-        const solution = await solutionPromise;
-        console.log(solution);
-        solveButton.textContent = 'Solve'; // Reset button
+        const startTime = performance.now();
+        solverWorker.postMessage({
+            action: 'solve',
+            data: {
+                targetShapeCode,
+                startingShapeCodes,
+                enabledOperations,
+                maxLayers,
+                preventWaste,
+                orientationSensitive,
+                maxStatesPerLevel
+            }
+        });
     } else {
         // Cancel the solver
-        shapeSolver.cancel();
+        if (solverWorker) {
+            solverWorker.postMessage({ action: 'cancel' });
+            solverWorker.terminate();
+            solverWorker = null;
+        }
         solveButton.textContent = 'Solve';
+        statusElement.textContent = 'Cancelled.';
+    }
+});
+
+// Initialization
+document.addEventListener('DOMContentLoaded', () => {
+    initializeDefaultShapes();
+    const colorModeSelect = document.getElementById('color-mode-select');
+    if (colorModeSelect) {
+        colorModeSelect.addEventListener('change', refreshShapeColors);
     }
 });
 
