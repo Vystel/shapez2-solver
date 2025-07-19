@@ -1,29 +1,21 @@
 # Shapez 2 Solver
 
-This is a web-based tool for the game "Shapez 2" that tries to find the most efficient sequence of operations to produce a shape using a given set of starting shapes.
+A web-based tool for the game [Shapez 2](https://shapez2.com/) that tries to find the most efficient solutions for creating a target shape from given starting shapes using a set of allowed operations.
 
 ---
 
-### How to use:
-
-- Type the code for the shape you want to make.
-- Add the starting shapes you have available and want the solver to work with.
-- Press solve to start finding a valid production chain. To make calculations quicker, try adjusting the options!
-- If a solution is found, the operation sequence will be displayed as a flowchart.
-
----
-
-### Features:
+### Features
 
 - Handles all the main Shapez 2 operations (cutting, rotating, stacking, painting, etc.)
-- Shows you a visual flowchart of the solution steps and lets you customize how it looks and export it as an image.
 - Shapes work with any amount of parts. (Hex shapes are supported!)
-- Has settings to control how thoroughly it searches for solutions.
+- Shows you a visual flowchart of the solution steps, which can be copied it as an image.
+- Renders shapes visually with customizable color modes (RGB, RYB, CMYK).
+- Has several settings to control the solver to the user's liking.
 
 ---
 
-### Sources:
+## Credits
 
-- [shapeOperations.js](https://github.com/tobspr-games/shapez-2-discord-bot) (JS Port)
-- [shapeRendering.js](https://github.com/Loupau38/loupau38.github.io/blob/main/assets/scripts/shapeViewer.js)
-- operationGraph.js uses [Cytoscape.js Dagre](https://github.com/cytoscape/cytoscape.js-dagre)
+- Shape operation logic ported to JS from [Loupau38's Shapez 2 Library](https://pypi.org/project/shapez2/).
+- Shape rendering logic adapted from [Loupau38's Shape Viewer](https://github.com/Loupau38/loupau38.github.io/blob/main/assets/scripts/shapeViewer.js).
+- Uses [Cytoscape.js](https://js.cytoscape.org/) for graph visualization.

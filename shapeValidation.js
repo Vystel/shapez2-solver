@@ -1,5 +1,5 @@
 // Imports
-import { Shape, NOTHING_CHAR, SHAPE_LAYER_SEPARATOR, PIN_CHAR, CRYSTAL_CHAR } from './shapeOperations.js';
+import { NOTHING_CHAR, SHAPE_LAYER_SEPARATOR, PIN_CHAR, CRYSTAL_CHAR } from './shapeOperations.js';
 
 // Valid shape characters
 const VALID_SHAPES = [
@@ -28,7 +28,7 @@ const VALID_COLORS = [
     'w', // white
 ];
 
-export function validateShapeCode(shapeCode) {
+function validateShapeCode(shapeCode) {
     const errors = [];
 
     // Check if shapeCode is a string
@@ -115,33 +115,12 @@ function validateLayer(layer, layerIndex) {
     return errors;
 }
 
-export function isValidShapeCode(shapeCode) {
-    return validateShapeCode(shapeCode).isValid;
-}
-
-export function validateAndParse(shapeCode) {
+export function showValidationErrors(shapeCode, context = 'shape') {
     const validation = validateShapeCode(shapeCode);
-    
     if (!validation.isValid) {
-        return {
-            isValid: false,
-            shape: null,
-            error: validation.errors.join('; ')
-        };
+        const errorMessage = `Invalid ${context} code: ${shapeCode}\n\nErrors:\n${validation.errors.join('\n')}`;
+        alert(errorMessage);
+        return false;
     }
-    
-    try {
-        const shape = Shape.fromShapeCode(shapeCode);
-        return {
-            isValid: true,
-            shape: shape,
-            error: null
-        };
-    } catch (error) {
-        return {
-            isValid: false,
-            shape: null,
-            error: error.message
-        };
-    }
+    return true;
 }

@@ -419,3 +419,24 @@ export function createShapeCanvas(shapeCode, size = 100, shapesConfig = SHAPES_C
     renderShape(ctx, size, shapeCode, shapesConfig, colorMode);
     return canvas;
 }
+
+export function createShapeElement(shapeCode) {
+    const container = document.createElement('div');
+    container.className = 'shape-display';
+
+    // Create canvas with current color mode
+    const canvas = createShapeCanvas(shapeCode, 40, SHAPES_CONFIG.QUAD, getCurrentColorMode());
+    canvas.className = 'shape-canvas';
+
+    // Store shape code as data attribute for easy refresh
+    canvas.dataset.shapeCode = shapeCode;
+
+    const label = document.createElement('span');
+    label.className = 'shape-label';
+    label.textContent = shapeCode;
+
+    container.appendChild(canvas);
+    container.appendChild(label);
+
+    return container;
+}

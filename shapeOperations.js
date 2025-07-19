@@ -1,7 +1,6 @@
-// JS port of https://github.com/tobspr-games/shapez-2-discord-bot/blob/main/shapeOperations.py 
+// JS port of a file in Loupau38's Shapez 2 Library https://pypi.org/project/shapez2/ 
 
-// ==================== Constants ====================
-
+// Constants
 export const NOTHING_CHAR = "-";
 export const SHAPE_LAYER_SEPARATOR = ":";
 export const PIN_CHAR = "P";
@@ -9,7 +8,7 @@ export const CRYSTAL_CHAR = "c";
 export const UNPAINTABLE_SHAPES = [CRYSTAL_CHAR, PIN_CHAR, NOTHING_CHAR];
 export const REPLACED_BY_CRYSTAL = [PIN_CHAR, NOTHING_CHAR];
 
-// ==================== Shape Classes ====================
+// Shape Classes
 export class ShapePart {
     constructor(shape, color) {
         this.shape = shape;
@@ -67,7 +66,7 @@ export class ShapeOperationConfig {
     }
 }
 
-// ==================== Shape Operation Helper Functions ====================
+// Shape Logic & Utility Functions
 function _gravityConnected(part1, part2) {
     if ([NOTHING_CHAR, PIN_CHAR].includes(part1.shape) || [NOTHING_CHAR, PIN_CHAR].includes(part2.shape)) {
         return false;
@@ -339,7 +338,194 @@ function _differentNumPartsUnsupported(func) {
     };
 }
 
-// ==================== Shape Operations ====================
+// Extra functions for Shape Analysis - for Solver
+export function _getAllRotations(shape, config) {
+    const rotations = new Set();
+    let current = shape;
+
+    for (let i = 0; i < current.numParts; i++) {
+        rotations.add(current.toShapeCode());
+        current = rotate90CW(current, config)[0];
+    }
+
+    return rotations;
+}
+
+export function _extractLayersByColor(shape) {
+    const numParts = shape.numParts;
+
+    const groupedLayers = []; // Final list of layers to return
+
+    shape.layers.forEach((layer) => {
+        const seenColors = {}; // Track color -> list of positions and shapes
+
+        // Group parts by color character
+        layer.forEach((part, partIndex) => {
+            if (
+                part.shape === NOTHING_CHAR ||
+                part.shape === PIN_CHAR ||
+                part.shape === CRYSTAL_CHAR
+            ) return;
+
+            if (!seenColors[part.color]) {
+                seenColors[part.color] = [];
+            }
+            seenColors[part.color].push({ index: partIndex, shape: part.shape });
+        });
+
+        // For each unique color, create a new layer row (shapes with color 'u')
+        Object.entries(seenColors).forEach(([, entries]) => {
+            const newLayer = Array.from({ length: numParts }, () => new ShapePart(NOTHING_CHAR, NOTHING_CHAR));
+            entries.forEach(({ index, shape }) => {
+                newLayer[index] = new ShapePart(shape, 'u');
+            });
+            groupedLayers.push(newLayer);
+        });
+    });
+
+    // Convert each ShapePart[] into a string
+    return groupedLayers.map(layer => layer.map(part => part.shape + part.color).join(''));
+}
+
+export function _getPaintColors(inputShape, targetShape) {
+    const targetColorMap = new Map();
+    for (const layer of targetShape.layers) {
+        for (const part of layer) {
+            if (!UNPAINTABLE_SHAPES.includes(part.shape) && part.color !== "u") {
+                if (!targetColorMap.has(part.shape)) {
+                    targetColorMap.set(part.shape, new Set());
+                }
+                targetColorMap.get(part.shape).add(part.color);
+            }
+        }
+    }
+
+    const validColors = new Set();
+    const topLayer = inputShape.layers[inputShape.layers.length - 1];
+    if (topLayer) {
+        for (const part of topLayer) {
+            if (!UNPAINTABLE_SHAPES.includes(part.shape)) {
+                const targetColors = targetColorMap.get(part.shape);
+                if (targetColors) {
+                    targetColors.forEach(color => {
+                        if (color !== part.color) {
+                            validColors.add(color);
+                        }
+                    });
+                }
+            }
+        }
+    }
+
+    return Array.from(validColors);
+}
+
+export function _getCrystalColors(shape) {
+    const crystalColors = new Set();
+    for (const layer of shape.layers) {
+        for (const part of layer) {
+            if (part.shape === CRYSTAL_CHAR) crystalColors.add(part.color);
+        }
+    }
+    return crystalColors.size > 0 ? Array.from(crystalColors) : ["u"];
+}
+
+export function _getSimilarity(shape1, shape2, weights = {type: 0.5, color: 0.3, order: 0.2}) {
+    // Part type similarity
+    const typeSim = _compareCounts(_getPartTypeCounts(shape1), _getPartTypeCounts(shape2));
+
+    // Part+color similarity
+    const colorSim = _compareCounts(_getPartCounts(shape1), _getPartCounts(shape2));
+
+    // Overall similarity
+    const orderSim = _comparePartOrder(shape1, shape2);
+
+    // Final score
+    return (typeSim * weights.type) +
+           (colorSim * weights.color) +
+           (orderSim * weights.order);
+}
+
+function _getPartTypeCounts(shape) {
+    const counts = new Map();
+    for (const layer of shape.layers) {
+        for (const part of layer) {
+            counts.set(part.shape, (counts.get(part.shape) || 0) + 1);
+        }
+    }
+    return counts;
+}
+
+function _getPartCounts(shape) {
+    const counts = new Map();
+    for (const layer of shape.layers) {
+        for (const part of layer) {
+            const key = `${part.shape}:${part.color}`;
+            counts.set(key, (counts.get(key) || 0) + 1);
+        }
+    }
+    return counts;
+}
+
+function _compareCounts(countsA, countsB) {
+    const keys = new Set([...countsA.keys(), ...countsB.keys()]);
+    let total = 0;
+    let match = 0;
+
+    for (const key of keys) {
+        const a = countsA.get(key) || 0;
+        const b = countsB.get(key) || 0;
+        match += Math.min(a, b);
+        total += Math.max(a, b);
+    }
+
+    return total === 0 ? 1 : match / total; // Handles case where both shapes are empty
+}
+
+function _comparePartOrder(shape1, shape2) {
+    if (shape1.layers.length !== shape2.layers.length) return 0; // Different structure
+
+    const rotations = [];
+    let current = shape1;
+
+    // Generate all rotations
+    for (let i = 0; i < shape1.numParts; i++) {
+        rotations.push(current);
+        current = rotate90CW(current)[0];
+    }
+
+    let bestMatchRatio = 0;
+
+    for (const rotatedShape of rotations) {
+        let totalParts = 0;
+        let correctParts = 0;
+
+        for (let layerIndex = 0; layerIndex < shape2.layers.length; layerIndex++) {
+            const layerA = rotatedShape.layers[layerIndex];
+            const layerB = shape2.layers[layerIndex];
+
+            const len = Math.min(layerA.length, layerB.length);
+            totalParts += len;
+
+            for (let i = 0; i < len; i++) {
+                if (layerA[i].shape === layerB[i].shape) {
+                    correctParts += 1;
+                }
+            }
+        }
+
+        if (totalParts > 0) {
+            const matchRatio = correctParts / totalParts;
+            if (matchRatio > bestMatchRatio) {
+                bestMatchRatio = matchRatio;
+            }
+        }
+    }
+
+    return bestMatchRatio;
+}
+
+// Shape Operations
 export function cut(shape, config = new ShapeOperationConfig()) {
     const takeParts = Math.ceil(shape.numParts / 2);
     const cutPoints = [[0, shape.numParts - 1], [shape.numParts - takeParts, shape.numParts - takeParts - 1]];

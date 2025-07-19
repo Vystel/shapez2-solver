@@ -1,142 +1,82 @@
-// ==================== Imports ====================
 import { colorValues } from './shapeRendering.js';
 import { getCurrentColorMode } from './main.js';
-import { ShapeOperationConfig } from './shapeOperations.js'; // Import ShapeOperationConfig
+import { createShapeCanvas } from './shapeRendering.js';
 
-// ==================== Global State ====================
 export let cyInstance = null;
 
-// ==================== Graph Rendering Functions ====================
-export function renderGraph(solution, operations, createShapeCanvas) {
+export function renderGraph(solutionPath) {
     const container = document.getElementById('graph-container');
     container.innerHTML = '';
-    if (!solution) return;
+    if (!solutionPath || solutionPath.length === 0) return;
 
-    // Retrieve maxShapeLayers from the input element for rendering
-    const maxShapeLayers = parseInt(document.getElementById('max-layers').value) || 4;
-    const renderConfig = new ShapeOperationConfig(maxShapeLayers);
-
-    // Parse solution to build ID into shape mapping
-    const idToShape = {};
-    const steps = solution.split(';');
-
-    for (const step of steps) {
-        if (step.includes('=')) {
-            // Initial shape assignment
-            const [id, shape] = step.split('=');
-            idToShape[id] = shape;
-        } else {
-            // Operation - parse inputs and outputs
-            const parts = step.split(':');
-            if (parts.length !== 3) continue;
-
-            const [inputPart, op, outputPart] = parts;
-            const outputs = outputPart.split(',');
-            const inputs = inputPart.split(',');
-
-            // Record new shapes (for painter, first input is shape)
-            if (op === 'paint') {
-                idToShape[outputs[0]] = operations.painter.apply(
-                    idToShape[inputs[0]], inputs[1], renderConfig
-                )[0];
-            } else if (op === 'crystal') {
-                idToShape[outputs[0]] = operations.crystalGenerator.apply(
-                    idToShape[inputs[0]], inputs[1], renderConfig
-                )[0];
-            } else {
-                const inputShapes = inputs.filter(inp => idToShape[inp]).map(inp => idToShape[inp]);
-                const outputShapes = applyOperation(op, operations, renderConfig, ...inputShapes);
-                outputs.forEach((outId, i) => {
-                    if (outputShapes[i]) idToShape[outId] = outputShapes[i];
-                });
-            }
-        }
-    }
-
-    // Build graph elements
     const elements = [];
     const nodeMap = {};
 
-    // Create nodes and edges
-    for (const step of steps) {
-        if (step.includes('=')) {
-            // Initial shape
-            const [id, shape] = step.split('=');
-            const nodeId = `node-${id}`;
-            nodeMap[id] = nodeId;
-            const shapeCanvas = createShapeCanvas(shape, 120);
-            elements.push({
-                data: {
-                    id: nodeId,
-                    label: shape,
-                    shapeCanvas: shapeCanvas.toDataURL()
-                },
-                classes: 'shape'
-            });
-        } else {
-            // Operation
-            const [inputPart, op, outputPart] = step.split(':');
-            const opId = `op-${step}`;
-            const inputs = inputPart.split(',');
-            const outputs = outputPart.split(',');
+    solutionPath.forEach((step, stepIndex) => {
+        const { operation, inputs, outputs, params } = step;
+        const opId = `op-${stepIndex}`;
 
-            // Add operation node
-            let opLabel = op;
-            let nodeClasses = 'op';
-            let backgroundColor = '#000';
+        // Operation node
+        let opLabel = operation;
+        let nodeClasses = 'op';
+        let backgroundColor = '#000';
 
-            if (op === 'paint' || op === 'crystal') {
-                opLabel += ` (${inputs[1]})`;
-                const colorMode = getCurrentColorMode();
-                if (colorValues[colorMode][inputs[1]]) {
-                    backgroundColor = colorValues[colorMode][inputs[1]];
-                    nodeClasses += ' colored-op';
-                }
+        if (operation === 'Painter' || operation === 'Crystal Generator') {
+            const color = params.color;
+            opLabel += ` (${color})`;
+            const colorMode = getCurrentColorMode();
+            if (colorValues[colorMode][color]) {
+                backgroundColor = colorValues[colorMode][color];
+                nodeClasses += ' colored-op';
             }
+        }
 
-            elements.push({
-                data: {
-                    id: opId,
-                    label: opLabel,
-                    image: `images/${op}.png`,
-                    backgroundColor: backgroundColor
-                },
-                classes: nodeClasses
-            });
+        elements.push({
+            data: {
+                id: opId,
+                label: opLabel,
+                image: `images/${operation.toLowerCase().replace(/\s+/g, '-')}.png`,
+                backgroundColor: backgroundColor
+            },
+            classes: nodeClasses
+        });
 
-            // Connect inputs to operation
-            inputs.forEach(input => {
-                if (input in nodeMap) {
-                    elements.push({
-                        data: { source: nodeMap[input], target: opId }
-                    });
-                }
-            });
-
-            // Create output nodes and connect
-            outputs.forEach(output => {
-                const nodeId = `node-${output}`;
-                nodeMap[output] = nodeId;
-
-                // Use shape from mapping - create canvas for visualization
-                const shapeCode = idToShape[output] || output;
-                const shapeCanvas = createShapeCanvas(shapeCode, 120);
+        // Input shapes
+        inputs.forEach(input => {
+            const nodeId = `shape-${input.id}`;
+            if (!nodeMap[nodeId]) {
+                const shapeCanvas = createShapeCanvas(input.shape, 120);
                 elements.push({
                     data: {
                         id: nodeId,
-                        label: shapeCode,
+                        label: input.shape,
                         shapeCanvas: shapeCanvas.toDataURL()
                     },
                     classes: 'shape'
                 });
+                nodeMap[nodeId] = true;
+            }
+            elements.push({ data: { source: nodeId, target: opId } });
+        });
 
-                // Connect operation to output
+        // Output shapes
+        outputs.forEach(output => {
+            const nodeId = `shape-${output.id}`;
+            if (!nodeMap[nodeId]) {
+                const shapeCanvas = createShapeCanvas((output.shape), 120);
                 elements.push({
-                    data: { source: opId, target: nodeId }
+                    data: {
+                        id: nodeId,
+                        label: output.shape,
+                        shapeCanvas: shapeCanvas.toDataURL()
+                    },
+                    classes: 'shape'
                 });
-            });
-        }
-    }
+                nodeMap[nodeId] = true;
+            }
+            elements.push({ data: { source: opId, target: nodeId } });
+        });
+    });
 
     // Get the initial direction from the select element
     const directionSelect = document.getElementById('direction-select');
@@ -180,10 +120,7 @@ export function renderGraph(solution, operations, createShapeCanvas) {
                     'background-color': 'transparent',
                     'border-width': 0,
                     'width': '60px',
-                    'height': '60px',
-                    'label': 'data(label)',
-                    'text-valign': 'bottom',
-                    'text-halign': 'center'
+                    'height': '60px'
                 }
             },
             {
@@ -220,21 +157,41 @@ export function renderGraph(solution, operations, createShapeCanvas) {
     });
 }
 
-// Helper function to apply operations for graph rendering
-function applyOperation(opName, operationsRef, config, ...shapes) {
-    switch (opName) {
-        case 'hcut': return operationsRef.halfDestroyer.apply(shapes[0], config);
-        case 'cut': return operationsRef.cutter.apply(shapes[0], config);
-        case 'swap': return operationsRef.swapper.apply(...shapes, config);
-        case 'r90cw': return operationsRef.rotateCW.apply(shapes[0], config);
-        case 'r90ccw': return operationsRef.rotateCCW.apply(shapes[0], config);
-        case 'r180': return operationsRef.rotate180.apply(shapes[0], config);
-        case 'stack': return operationsRef.stacker.apply(...shapes, config);
-        case 'pin': return operationsRef.pinPusher.apply(shapes[0], config);
-        case 'paint': return []; // Handled separately
-        case 'crystal': return []; // Handled separately
-        default: return [];
+export async function copyGraphToClipboard() {
+    const cyInstance = getCyInstance(); // Get the Cytoscape instance
+    if (!cyInstance) return;
+
+    const graphImage = cyInstance.png({
+        output: 'blob',
+        scale: 1,
+        full: true
+    });
+
+    try {
+        const clipboardItem = new ClipboardItem({ 'image/png': graphImage });
+        await navigator.clipboard.write([clipboardItem]);
+        alert('Graph image copied to clipboard!');
+    } catch (error) {
+        console.error('Failed to copy image to clipboard:', error);
+        alert('Failed to copy image to clipboard. Your browser may not support this or you need to grant permission.');
     }
+}
+
+export function applyGraphLayout(direction) {
+    const cyInstance = getCyInstance();
+    if (!cyInstance) return;
+
+    const layout = cyInstance.layout({
+        name: 'dagre',
+        rankDir: direction,
+        nodeSep: 50,
+        edgeSep: 10,
+        rankSep: 100,
+        animate: true,
+        animationDuration: 500
+    });
+
+    layout.run();
 }
 
 export function getCyInstance() {

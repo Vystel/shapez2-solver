@@ -22,10 +22,10 @@
             <p>The shape you want to make. Any amount of parts are supported!</p>
             <div id="input-button-container">
                 <input type="text" id="target-shape" placeholder="Shape Code">
-                <button id="calculate-btn">Solve</button>
+                <button id="solve-btn">Solve</button>
             </div>
 
-            <div style="width: 100%; height: 1px; background-color: gray; margin: 20px 0;"></div>
+            <div id="separator"></div>
 
             <h2>Starting Shapes</h2>
             <p>Shapes you have available and want the solver to work with. You can add the same shape multiple times.</p>
@@ -38,7 +38,97 @@
         </div>
 
         <div id="options-content" class="tab-content">
-            <h2>Shape Options</h2> 
+            <h2>Enabled Operations</h2>
+            <p>Operations allowed for use. Disable redundant operations for quicker solutions!</p>
+            <div id="enabled-operations">
+
+                <!-- Rotator Variants -->
+                <div class="operation-row">
+                    <div class="operation-item enabled" data-operation="Rotator CW">
+                        <img src="images/rotator-cw.png" alt="Rotator CW" class="operation-icon">
+                        <span>CW</span>
+                    </div>
+                    <div class="operation-item enabled" data-operation="Rotator CCW">
+                        <img src="images/rotator-ccw.png" alt="Rotator CCW" class="operation-icon">
+                        <span>CCW</span>
+                    </div>
+                    <div class="operation-item enabled" data-operation="Rotator 180">
+                        <img src="images/rotator-180.png" alt="Rotator 180" class="operation-icon">
+                        <span>180</span>
+                    </div>
+                </div>
+
+                <!-- Half Destroyer, Cutter, Swapper -->
+                <div class="operation-row">
+                    <div class="operation-item enabled" data-operation="Half Destroyer">
+                        <img src="images/half-destroyer.png" alt="Half Destroyer" class="operation-icon">
+                        <span>Half</span>
+                    </div>
+                    <div class="operation-item enabled" data-operation="Cutter">
+                        <img src="images/cutter.png" alt="Cutter" class="operation-icon">
+                        <span>Cut</span>
+                    </div>
+                    <div class="operation-item enabled" data-operation="Swapper">
+                        <img src="images/swapper.png" alt="Swapper" class="operation-icon">
+                        <span>Swap</span>
+                    </div>
+                </div>
+
+                <!-- Stacker, Painter -->
+                <div class="operation-row">
+                    <div class="operation-item enabled" data-operation="Stacker">
+                        <img src="images/stacker.png" alt="Stacker" class="operation-icon">
+                        <span>Stacker</span>
+                    </div>
+                    <div class="operation-item enabled" data-operation="Painter">
+                        <img src="images/painter.png" alt="Painter" class="operation-icon">
+                        <span>Painter</span>
+                    </div>
+                </div>
+
+                <!-- Pin Pusher, Crystal Generator -->
+                <div class="operation-row">
+                    <div class="operation-item enabled" data-operation="Pin Pusher">
+                        <img src="images/pin-pusher.png" alt="Pin Pusher" class="operation-icon">
+                        <span>Pin Pusher</span>
+                    </div>
+                    <div class="operation-item enabled" data-operation="Crystal Generator">
+                        <img src="images/crystal-generator.png" alt="Crystal Generator" class="operation-icon">
+                        <span>Crystal Generator</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <div id="separator"></div>
+
+            <h2>Solver Options</h2>
+
+            <div class="option-group">
+                <label for="max-states-per-level">Max States Per Level</label>
+                <input type="number" id="max-states-per-level" class="wide" value="2000">
+                <p class="option-desc">Smaller values solve faster but may be less accurate or fail. Larger values take more time but are more likely to succeed and give better results.</p>
+            </div>
+
+            <div class="option-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" class="operation-toggle" id="prevent-waste" />
+                    Prevent Waste
+                </label>
+                <p class="option-desc">Only accept solutions if all remaining shapes match the target.</p>
+            </div>
+
+            <div class="option-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" class="operation-toggle" id="orientation-sensitive" />
+                    Orientation-Sensitive
+                </label>
+                <p class="option-desc">Checks if a shape matches the target in the exact orientation only.</p>
+            </div>
+
+            <div id="separator"></div>
+
+            <h2>Shape Options</h2>
 
             <div class="option-group">
                 <label for="max-layers">Max Layers</label>
@@ -55,49 +145,6 @@
                 </select>
                 <p class="option-desc">Choose how you want colors to be displayed on shapes.</p>
             </div>
-
-            <div style="width: 100%; height: 1px; background-color: gray; margin: 20px 0;"></div>
-
-            <h2>Solver Options</h2>
-
-            <div class="option-group">
-                <label for="max-states-per-level">Max States Per Level</label>
-                <input type="number" id="max-states-per-level" class="wide" value="2000">
-                <p class="option-desc">Smaller values solve faster but may be less accurate or fail. Larger values take more time but are more likely to succeed and give better results.</p>
-            </div>
-
-            <div class="option-group">
-                <label class="checkbox-label">
-                    <input type="checkbox" class="operation-toggle" id="prevent-waste-checkbox" />
-                    Prevent Waste
-                </label>
-                <p class="option-desc">Only accept solutions if all remaining shapes match the target.</p>
-            </div>
-
-            <div class="option-group">
-                <label class="checkbox-label">
-                    <input type="checkbox" class="operation-toggle" id="orientation-sensitivity-checkbox" />
-                    Orientation-Sensitive
-                </label>
-                <p class="option-desc">Checks if a shape matches the target in the exact orientation only.</p>
-            </div>
-
-            <div style="width: 100%; height: 1px; background-color: gray; margin: 20px 0;"></div>
-        
-            <h2>Enabled Operations</h2>
-            <p>Operations allowed for use. Disable redundant operations for quicker processing!</p>
-            <div id="operation-checkboxes">
-                <label><input type="checkbox" class="operation-toggle" value="halfDestroyer" checked> Half Destroyer</label><br>
-                <label><input type="checkbox" class="operation-toggle" value="cutter" checked> Cutter</label><br>
-                <label><input type="checkbox" class="operation-toggle" value="swapper" checked> Swapper</label><br>
-                <label><input type="checkbox" class="operation-toggle" value="rotateCW" checked> Rotate CW</label><br>
-                <label><input type="checkbox" class="operation-toggle" value="rotateCCW" checked> Rotate CCW</label><br>
-                <label><input type="checkbox" class="operation-toggle" value="rotate180" checked> Rotate 180</label><br>
-                <label><input type="checkbox" class="operation-toggle" value="stacker" checked> Stacker</label><br>
-                <label><input type="checkbox" class="operation-toggle" value="painter" checked> Painter</label><br>
-                <label><input type="checkbox" class="operation-toggle" value="pinPusher" checked> Pin Pusher</label><br>
-                <label><input type="checkbox" class="operation-toggle" value="crystalGenerator" checked> Crystal Generator</label><br>
-            </div>
         </div>
     </div>
 
@@ -108,7 +155,7 @@
         </div>
         <div class="graph-controls">
             <div id="progress">
-                <p>Status: <span id="status-msg">Idle</span></p>
+                <p>Status: <span id="status">Idle</span></p>
             </div>
             <div class="direction-control">
                 <label for="direction-select">Graph Direction:</label>
@@ -121,7 +168,6 @@
             </div>
         </div>
     </div>
-
 
     <script src="https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
     <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>

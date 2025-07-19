@@ -1,605 +1,278 @@
-// ==================== Imports ====================
-import { Shape, CRYSTAL_CHAR, UNPAINTABLE_SHAPES, cut, halfCut, rotate90CW, rotate90CCW, rotate180, swapHalves, stack, topPaint, pushPin, genCrystal, ShapeOperationConfig } from './shapeOperations.js';
-import { createShapeCanvas } from './shapeRendering.js';
+import {
+    Shape, ShapeOperationConfig,
+    _getAllRotations, _getPaintColors, _getCrystalColors, _getSimilarity,
+    halfCut, cut, swapHalves, rotate90CW, rotate90CCW, rotate180, stack, topPaint, pushPin, genCrystal
+} from './shapeOperations.js';
 import { renderGraph } from './operationGraph.js';
 
-// Applies an operation to a single shape
-const applyOp = (fn, shapeCode, ...args) => {
-    const shape = Shape.fromShapeCode(shapeCode);
-    return fn(shape, ...args).map(s => s.toShapeCode());
-};
+function shapeSolver(targetShapeCode, startingShapeCodes, enabledOperations, maxLayers, preventWaste, orientationSensitive, maxStatesPerLevel = Infinity) {
+    let cancelled = false;
+    const target = Shape.fromShapeCode(targetShapeCode);
+    const targetCrystalColors = _getCrystalColors(target);
+    const config = new ShapeOperationConfig(maxLayers);
+    const statusElement = document.getElementById('status');
+    const startTime = performance.now();
+    let lastUpdate = startTime;
+    let depth = 0;
 
-// Applies an operation to two shapes
-const applyOp2 = (fn, code1, code2, ...args) => {
-    const shape1 = Shape.fromShapeCode(code1);
-    const shape2 = Shape.fromShapeCode(code2);
-    return fn(shape1, shape2, ...args).map(s => s.toShapeCode());
-};
-
-// Operation Definitions
-export const operations = {
-    cutter: {
-        inputs: 1,
-        apply: (shapeCode, config) => applyOp(cut, shapeCode, config),
-        toString: (inputId, output1Id, output2Id) => `${inputId}:cut:${output1Id},${output2Id}`
-    },
-    halfDestroyer: {
-        inputs: 1,
-        apply: (shapeCode, config) => applyOp(halfCut, shapeCode, config),
-        toString: (inputId, outputId) => `${inputId}:hcut:${outputId}`
-    },
-    rotateCW: {
-        inputs: 1,
-        apply: (shapeCode, config) => applyOp(rotate90CW, shapeCode, config),
-        toString: (inputId, outputId) => `${inputId}:r90cw:${outputId}`
-    },
-    rotateCCW: {
-        inputs: 1,
-        apply: (shapeCode, config) => applyOp(rotate90CCW, shapeCode, config),
-        toString: (inputId, outputId) => `${inputId}:r90ccw:${outputId}`
-    },
-    rotate180: {
-        inputs: 1,
-        apply: (shapeCode, config) => applyOp(rotate180, shapeCode, config),
-        toString: (inputId, outputId) => `${inputId}:r180:${outputId}`
-    },
-    swapper: {
-        inputs: 2,
-        apply: (shapeCode1, shapeCode2, config) => applyOp2(swapHalves, shapeCode1, shapeCode2, config),
-        toString: (input1Id, input2Id, output1Id, output2Id) => `${input1Id},${input2Id}:swap:${output1Id},${output2Id}`
-    },
-    stacker: {
-        inputs: 2,
-        apply: (bottomShapeCode, topShapeCode, config) => applyOp2(stack, bottomShapeCode, topShapeCode, config),
-        toString: (bottomId, topId, outputId) => `${bottomId},${topId}:stack:${outputId}`
-    },
-    painter: {
-        inputs: 1,
-        apply: (shapeCode, color, config) => applyOp(topPaint, shapeCode, color, config),
-        toString: (inputId, color, outputId) => `${inputId},${color}:paint:${outputId}`
-    },
-    pinPusher: {
-        inputs: 1,
-        apply: (shapeCode, config) => applyOp(pushPin, shapeCode, config),
-        toString: (inputId, outputId) => `${inputId}:pin:${outputId}`
-    },
-    crystalGenerator: {
-        inputs: 1,
-        apply: (shapeCode, color, config) => applyOp(genCrystal, shapeCode, color, config),
-        toString: (inputId, color, outputId) => `${inputId},${color}:crystal:${outputId}`
+    // Precompute acceptable shape codes
+    const acceptable = new Set();
+    if (orientationSensitive) {
+        acceptable.add(targetShapeCode);
+    } else {
+        const rotations = _getAllRotations(target, config);
+        for (const code of rotations) {
+            acceptable.add(code);
+        }
     }
-};
 
-export class ShapeSolver {
-    constructor(startingShapes, targetShape, operations) {
-        this.startingShapes = startingShapes;
-        this.targetShape = targetShape;
-        this.operations = operations;
-        this.nextId = startingShapes.length + 1;
-        this.operationCache = new Map();
-        this.maxStatesPerLevel = parseInt(document.getElementById('max-states-per-level').value) || Infinity;
-        this.maxShapeLayers = parseInt(document.getElementById('max-layers').value) || 4;
-        this.targetLayers = this.targetShape.split(':');
-        this.targetComponents = this.analyzeShapeComponents(this.targetShape);
+    // Define operations
+    const operations = {
+        "Rotator CW": { fn: rotate90CW, inputCount: 1 },
+        "Rotator CCW": { fn: rotate90CCW, inputCount: 1 },
+        "Rotator 180": { fn: rotate180, inputCount: 1 },
+        "Half Destroyer": { fn: halfCut, inputCount: 1 },
+        "Cutter": { fn: cut, inputCount: 1 },
+        "Swapper": { fn: swapHalves, inputCount: 2 },
+        "Stacker": { fn: stack, inputCount: 2 },
+        "Painter": { fn: topPaint, inputCount: 1, needsColor: true },
+        "Pin Pusher": { fn: pushPin, inputCount: 1 },
+        "Crystal Generator": { fn: genCrystal, inputCount: 1, needsColor: true }
+    };
+
+    // Initialize shapes with unique IDs
+    let nextId = 0;
+    const shapes = new Map();
+    const initialAvailableIds = new Set();
+    for (const code of startingShapeCodes) {
+        shapes.set(nextId, code);
+        initialAvailableIds.add(nextId);
+        nextId++;
     }
-    
-    // Gets all colors present in a given shape, mapped by the shape of the part
-    getColorsInShape(shape) {
-        const shapeColorMap = new Map();
 
-        for (const layer of shape.layers) {
-            for (const part of layer) {
-                // Only consider paintable shapes that aren't uncolored
-                if (!UNPAINTABLE_SHAPES.includes(part.shape) && part.color !== "u") {
-                    if (!shapeColorMap.has(part.shape)) {
-                        shapeColorMap.set(part.shape, new Set());
-                    }
-                    shapeColorMap.get(part.shape).add(part.color);
+    // Function to calculate similarity score for a state
+    function calculateStateScore(availableIds) {
+        const shapeCodes = Array.from(availableIds).map(id => shapes.get(id));
+        const shapeObjects = shapeCodes.map(code => Shape.fromShapeCode(code));
+        
+        let totalSimilarity = 0;
+        for (const shape of shapeObjects) {
+            totalSimilarity += _getSimilarity(shape, target);
+        }
+        
+        return shapeObjects.length > 0 ? totalSimilarity / shapeObjects.length : 0;
+    }
+
+    // Solver setup
+    const queue = [{ availableIds: initialAvailableIds, path: [], depth: 0, score: calculateStateScore(initialAvailableIds) }];
+    const visited = new Set();
+
+    // Function to turn a state's shapes into a string for visited check
+    function getStateKey(availableIds) {
+        const countMap = {};
+        for (const id of availableIds) {
+            const code = shapes.get(id);
+            countMap[code] = (countMap[code] || 0) + 1;
+        }
+        const entries = Object.entries(countMap).sort();
+        return JSON.stringify(entries);
+    }
+
+    visited.add(getStateKey(initialAvailableIds));
+
+    // Cancellation function
+    function cancel() {
+        cancelled = true;
+        statusElement.textContent = 'Cancelled.';
+    }
+
+    // Function to prune states at current depth level
+    function pruneStatesAtDepth(states, maxStates) {
+        if (states.length <= maxStates) {
+            return states;
+        }
+        
+        // Sort by score (higher is better)
+        states.sort((a, b) => b.score - a.score);
+        
+        // Keep only the top maxStates
+        return states.slice(0, maxStates);
+    }
+
+    // Async solver loop
+    async function runSolver() {
+        while (queue.length > 0 && !cancelled) {
+            // Process all states at current depth level
+            const currentDepthStates = [];
+            while (queue.length > 0 && queue[0].depth === depth) {
+                currentDepthStates.push(queue.shift());
+            }
+            
+            // Process each state at current depth
+            const nextDepthStates = [];
+            
+            for (const current of currentDepthStates) {
+                if (cancelled) break;
+                
+                const availableIds = current.availableIds;
+                const path = current.path;
+
+                // Check if goal is reached
+                const shapeCodes = Array.from(availableIds).map(id => shapes.get(id));
+                const hasTarget = shapeCodes.some(code => acceptable.has(code));
+                const allTarget = preventWaste ? shapeCodes.every(code => acceptable.has(code)) : true;
+                if (hasTarget && allTarget) {
+                    const solutionPath = path.map(step => ({
+                        operation: step.type,
+                        inputs: step.inputIds.map(id => ({ id, shape: shapes.get(id) })),
+                        outputs: step.outputIds.map(id => ({ id, shape: shapes.get(id) })),
+                        params: step.color ? { color: step.color } : {}
+                    }));
+                    renderGraph(solutionPath);
+                    const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
+                    statusElement.textContent = `Solved in ${elapsed}s at depth ${depth}, ${visited.size} states`;
+                    return solutionPath;
                 }
-            }
-        }
 
-        return shapeColorMap;
-    }
+                // Generate next states
+                for (const opName of enabledOperations) {
+                    if (cancelled) break;
+                    const op = operations[opName];
+                    if (!op) continue;
+                    const { fn, inputCount, needsColor } = op;
 
-    // Determines valid colors for painting an input shape based on a target shape's colors
-    getValidColorsForShape(inputShape, targetShapeColorMap) {
-        const validColors = new Set();
-        const inputShapeObj = Shape.fromShapeCode(inputShape);
-
-        for (const layer of inputShapeObj.layers) {
-            for (const part of layer) {
-                // If the part is paintable
-                if (!UNPAINTABLE_SHAPES.includes(part.shape)) {
-                    // Get colors for this specific part shape from the target map
-                    const colorsForThisShape = targetShapeColorMap.get(part.shape);
-                    if (colorsForThisShape) {
-                        colorsForThisShape.forEach(color => validColors.add(color));
-                    }
-                }
-            }
-        }
-
-        return Array.from(validColors);
-    }
-
-    // Gets the colors of crystal parts within a shape
-    getCrystalColorsInShape(shape) {
-        const crystalColors = new Set();
-
-        for (const layer of shape.layers) {
-            for (const part of layer) {
-                // If the part is a crystal
-                if (part.shape === CRYSTAL_CHAR) {
-                    crystalColors.add(part.color);
-                }
-            }
-        }
-
-        // Returns the crystal colors or ["u)"] if no crystals are found
-        return crystalColors.size > 0 ? Array.from(crystalColors) : ["u"];
-    }
-
-    // Generates all possible orientations of a given shape
-    getAllRotations(shapeCode) {
-        const rotations = new Set();
-        let currentShape = Shape.fromShapeCode(shapeCode);
-        const config = new ShapeOperationConfig(this.maxShapeLayers);
-
-        rotations.add(currentShape.toShapeCode());
-
-        try {
-            // Determine the number of parts in the first layer to decide rotation iterations
-            const partAmount = currentShape.layers.length > 0 ? currentShape.layers[0].length : 0;
-            for (let i = 0; i < partAmount - 1; i++) { // Iterate to get all unique rotations
-                const rotatedShapes = rotate90CW(currentShape, config);
-                if (rotatedShapes.length > 0) {
-                    currentShape = rotatedShapes[0];
-                    rotations.add(currentShape.toShapeCode());
-                } else {
-                    console.warn('Failed to get orientations for shape:', currentShape.toShapeCode());
-                    break;
-                }
-            }
-        } catch (e) {
-            console.error('Error during getAllRotations:', e);
-            // If an error occurs and no rotations were added, just add the original shape
-            if (rotations.size === 0) {
-                rotations.add(shapeCode);
-            }
-        }
-
-        return Array.from(rotations);
-    }
-
-    // Checks if two shapes match in any orientation
-    shapesMatchAnyOrientation(shape1, shape2) {
-        if (shape1 === shape2) return true; // Exact match
-
-        const rotations1 = this.getAllRotations(shape1); // All rotations of shape1
-        const rotations2 = this.getAllRotations(shape2); // All rotations of shape2
-
-        for (const rot1 of rotations1) {
-            if (rotations2.includes(rot1)) { // If any rotation of shape1 matches any rotation of shape2
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    // Analyze shape components for heuristic scoring
-    analyzeShapeComponents(shape) {
-        const layers = shape.split(':');
-        const components = new Set();
-
-        for (const layer of layers) {
-            for (let i = 0; i < layer.length; i += 2) {
-                const component = layer.substring(i, i + 2); // Extract shape part
-                if (component !== '--') { // Ignore empty slots
-                    components.add(component);
-                    // Remove any colors
-                    if (component.length === 2) {
-                        components.add(component[0] + '-');
-                    }
-                }
-            }
-        }
-
-        return components;
-    }
-
-    // Calculate how similar a shape is to the target (0-1, higher is better)
-    calculateShapeSimilarity(shape) {
-        if (shape === this.targetShape) return 1.0; // Perfect match
-
-        const components = this.analyzeShapeComponents(shape);
-        // Find common components
-        const intersection = new Set([...components].filter(x => this.targetComponents.has(x)));
-        // Find all unique components
-        const union = new Set([...components, ...this.targetComponents]);
-
-        if (union.size === 0) return 0; // No components to compare
-
-        // Jaccard index for component similarity
-        const jaccard = intersection.size / union.size;
-        // Layer count similarity
-        const layerSimilarity = Math.min(shape.split(':').length, this.targetLayers.length) / Math.max(shape.split(':').length, this.targetLayers.length);
-
-        // Weighted average of Jaccard and layer similarity
-        return (jaccard * 0.7) + (layerSimilarity * 0.3);
-    }
-
-    // Retrieves operation results from cache or computes and stores them
-    getCachedOperation(opName, ...inputs) {
-        const shapes = inputs.slice(0, inputs.length - 1);
-        const config = inputs[inputs.length - 1];
-
-        // Create a unique key for caching based on operation, shapes, and max layers
-        const key = `${opName}:${shapes.join(',')}:${config.maxShapeLayers}`;
-        if (this.operationCache.has(key)) {
-            return this.operationCache.get(key); // Return cached result
-        }
-
-        try {
-            const result = this.operations[opName].apply(...shapes, config); // Apply the operation
-            this.operationCache.set(key, result); // Cache the result
-            return result;
-        } catch (e) {
-            this.operationCache.set(key, null);
-            return null;
-        }
-    }
-}
-
-// ==================== Solver Controller ====================
-export class ShapeSolverController {
-    constructor(solver, onSolverFinishedCallback) {
-        this.solver = solver;
-        this.onSolverFinishedCallback = onSolverFinishedCallback;
-        this.cancelled = false;
-        this.statusElement = document.getElementById('status-msg');
-        this.processedStates = 0;
-        this.lastUpdate = 0;
-        this.operationConfig = new ShapeOperationConfig(this.solver.maxShapeLayers);
-    }
-
-    // Calculates a heuristic score for a given set of available shapes (state)
-    calculateStateHeuristic(shapes) {
-        let maxSimilarity = 0;           // Maximum similarity of any shape in the state to the target
-        let hasTargetComponents = 0;     // Proportion of target components present in the state
-        let totalShapes = shapes.length; // Total number of shapes in the state
-
-        for (const shape of shapes) {
-            const similarity = this.solver.calculateShapeSimilarity(shape.shape);
-            maxSimilarity = Math.max(maxSimilarity, similarity);
-
-            if (this.solver.targetComponents.size > 0) {
-                const shapeComponents = this.solver.analyzeShapeComponents(shape.shape);
-                // Count common components between current shape and target
-                const commonComponents = [...shapeComponents].filter(c => this.solver.targetComponents.has(c));
-                hasTargetComponents += commonComponents.length / this.solver.targetComponents.size;
-            }
-        }
-
-        // Heuristic formula: prioritize similarity, then target components, penalize more shapes
-        return maxSimilarity * 1000 + hasTargetComponents * 100 - totalShapes * 10;
-    }
-
-    // Starts the search for the solution
-    async start() {
-        // Initialize the starting state with initial shapes
-        const initial = this.solver.startingShapes.map((s, i) => ({
-            id: i + 1,
-            shape: s
-        }));
-
-        const initialState = {
-            availableShapes: [...initial], // Shapes currently available for use
-            solution: initial.map(shape => `${shape.id}=${shape.shape}`).join(';'), // String representation of solution path
-            heuristic: this.calculateStateHeuristic(initial) // Heuristic score for this state
-        };
-
-        let depth = 0;
-        let currentLevel = [initialState];
-        const visited = new Map();
-        const stateKey = this.getStateKey(initialState.availableShapes);
-        visited.set(stateKey, depth);
-
-        const t0 = performance.now();
-
-        // Main search loop
-        while (currentLevel.length > 0 && !this.cancelled) {
-            // Sort states by heuristic score (higher is better)
-            currentLevel.sort((a, b) => b.heuristic - a.heuristic);
-
-            // Prune states if exceeding the maximum allowed per level
-            if (currentLevel.length > this.solver.maxStatesPerLevel) {
-                currentLevel = currentLevel.slice(0, this.solver.maxStatesPerLevel);
-            }
-
-            const nextLevel = []; // States for the next search depth
-
-            // Process states in batches to allow UI updates and prevent freezing
-            const batchSize = Math.min(50, currentLevel.length);
-            for (let batchStart = 0; batchStart < currentLevel.length; batchStart += batchSize) {
-                if (this.cancelled) break;
-
-                const batch = currentLevel.slice(batchStart, batchStart + batchSize);
-
-                for (const state of batch) {
-                    // Check if we've found the solution
-                    const preventWaste = document.getElementById('prevent-waste-checkbox')?.checked;
-                    const matchExactOrientation = document.getElementById('orientation-sensitivity-checkbox')?.checked;
-                    // Filter out "empty" shapes
-                    const nonEmptyShapes = state.availableShapes.filter(s => !/^[-]+$/.test(s.shape));
-
-                    let matchingTargets;
-                    if (matchExactOrientation) { // checkbox checked
-                        // Check for exact orientation match with target
-                        matchingTargets = nonEmptyShapes.filter(s => s.shape === this.solver.targetShape);
-                    } else { // checkbox NOT checked
-                        // Check if any orientation matches the target
-                        matchingTargets = nonEmptyShapes.filter(s => this.solver.shapesMatchAnyOrientation(s.shape, this.solver.targetShape));
-                    }
-
-                    // Goal state considering the preventWaste option
-                    const isGoalState = preventWaste
-                        ? nonEmptyShapes.length > 0 && matchingTargets.length === nonEmptyShapes.length
-                        : matchingTargets.length > 0;
-
-                    // If the goal has been reached, show the solution
-                    if (isGoalState) {
-                        const elapsed = (performance.now() - t0) / 1000;
-                        this.statusElement.textContent = `Solved in ${elapsed.toFixed(2)}s at depth ${depth}, ${visited.size} states`;
-                        renderGraph(state.solution, this.solver.operations, createShapeCanvas);
-                        this.cleanup();
-                        return;
-                    }
-
-                    // Iterate through all available operations
-                    for (const [opName, op] of Object.entries(this.solver.operations)) {
-                        if (this.cancelled) return;
-
-                        // Skip operations if not enough input shapes are available
-                        if (state.availableShapes.length < op.inputs) continue;
-
-                        // Special handling for operations requiring colors
-                        if (opName === 'painter' || opName === 'crystalGenerator') {
-                            const validShapes = state.availableShapes.filter(s => !/^[-]+$/.test(s.shape));
-                            const targetShapeObj = Shape.fromShapeCode(this.solver.targetShape);
-
-                            if (opName === 'crystalGenerator') {
-                                const colorsToUse = this.solver.getCrystalColorsInShape(targetShapeObj); // Get target crystal colors
-                                for (const shape of validShapes) {
-                                    for (const color of colorsToUse) {
-                                        try {
-                                            // Apply crystal generation
-                                            const outputs = this.solver.getCachedOperation(opName, shape.shape, color, this.operationConfig);
-                                            if (outputs) {
-                                                this.processState(
-                                                    state,
-                                                    [shape], // Input shape for the operation
-                                                    op,
-                                                    outputs,
-                                                    [color], // Extra data: the color used
-                                                    nextLevel,
-                                                    visited,
-                                                    depth
-                                                );
-                                            }
-                                        } catch (e) {
-                                            // Ignore any errors
+                    if (inputCount === 1) {
+                        for (const id of availableIds) {
+                            if (cancelled) break;
+                            const inputShape = Shape.fromShapeCode(shapes.get(id));
+                            if (needsColor) {
+                                const colors = opName === "Painter" ? _getPaintColors(inputShape, target) : targetCrystalColors;
+                                for (const color of colors) {
+                                    const outputs = fn(inputShape, color, config);
+                                    const newIds = [];
+                                    for (const outputShape of outputs) {
+                                        if (!outputShape.isEmpty()) {
+                                            const newId = nextId++;
+                                            shapes.set(newId, outputShape.toShapeCode());
+                                            newIds.push(newId);
+                                        }
+                                    }
+                                    if (newIds.length > 0) {
+                                        const newAvailableIds = new Set(availableIds);
+                                        newAvailableIds.delete(id);
+                                        for (const newId of newIds) {
+                                            newAvailableIds.add(newId);
+                                        }
+                                        const stateKey = getStateKey(newAvailableIds);
+                                        if (!visited.has(stateKey)) {
+                                            visited.add(stateKey);
+                                            const newPath = [...path, { type: opName, inputIds: [id], color, outputIds: newIds }];
+                                            const newScore = calculateStateScore(newAvailableIds);
+                                            nextDepthStates.push({ availableIds: newAvailableIds, path: newPath, depth: depth + 1, score: newScore });
                                         }
                                     }
                                 }
-                            } else { // Painter operation
-                                const targetShapeColorMap = this.solver.getColorsInShape(targetShapeObj); // Get target shape's color map
-                                for (const shape of validShapes) {
-                                    const colorsToUse = this.solver.getValidColorsForShape(shape.shape, targetShapeColorMap); // Get valid colors for painting
-                                    for (const color of colorsToUse) {
-                                        try {
-                                            // Apply painter operation
-                                            const outputs = this.solver.getCachedOperation(opName, shape.shape, color, this.operationConfig);
-                                            if (outputs) {
-                                                // Check if painting this shape with this color is useful
-                                                const paintedShape = outputs[0];
-                                                const similarity = this.solver.calculateShapeSimilarity(paintedShape);
-
-                                                // Only process promising painted shapes or in early depths
-                                                if (similarity > 0.1 || paintedShape === this.solver.targetShape || depth < 2) {
-                                                    this.processState(
-                                                        state,
-                                                        [shape],
-                                                        op,
-                                                        outputs,
-                                                        [color],
-                                                        nextLevel,
-                                                        visited,
-                                                        depth
-                                                    );
-                                                }
-                                            }
-                                        } catch (e) {
-                                            // Catch and ignore errors for individual operations
-                                        }
+                            } else {
+                                const outputs = fn(inputShape, config);
+                                const newIds = [];
+                                for (const outputShape of outputs) {
+                                    if (!outputShape.isEmpty()) {
+                                        const newId = nextId++;
+                                        shapes.set(newId, outputShape.toShapeCode());
+                                        newIds.push(newId);
+                                    }
+                                }
+                                if (newIds.length > 0) {
+                                    const newAvailableIds = new Set(availableIds);
+                                    newAvailableIds.delete(id);
+                                    for (const newId of newIds) {
+                                        newAvailableIds.add(newId);
+                                    }
+                                    const stateKey = getStateKey(newAvailableIds);
+                                    if (!visited.has(stateKey)) {
+                                        visited.add(stateKey);
+                                        const newPath = [...path, { type: opName, inputIds: [id], outputIds: newIds }];
+                                        const newScore = calculateStateScore(newAvailableIds);
+                                        nextDepthStates.push({ availableIds: newAvailableIds, path: newPath, depth: depth + 1, score: newScore });
                                     }
                                 }
                             }
-                        } else { // General operations (cutter, rotator, swapper, stacker, pinPusher)
-                            const validShapes = state.availableShapes.filter(s => !/^[-]+$/.test(s.shape));
-                            // Get combinations of shapes for the operation's input
-                            const combos = this.getCombinationsOptimized(validShapes, op.inputs);
-
-                            let combosToTry = combos;
-                            // Heuristic pruning for combinations at deeper levels to optimize performance
-                            if (depth > 3 && combos.length > 20) {
-                                // Sort combinations by potential (shapes with higher similarity to target)
-                                combosToTry = combos.sort((a, b) => {
-                                    const scoreA = a.reduce((sum, shape) => sum + this.solver.calculateShapeSimilarity(shape.shape), 0);
-                                    const scoreB = b.reduce((sum, shape) => sum + this.solver.calculateShapeSimilarity(shape.shape), 0);
-                                    return scoreB - scoreA;
-                                }).slice(0, 20); // Take only the top 20
-                            }
-
-                            for (const combo of combosToTry) {
-                                if (this.cancelled) return;
-                                const inputs = combo.map(s => s.shape);
-
-                                // Special case for stacker: try both orders of input shapes
-                                if (opName === 'stacker') {
-                                    // Original order
-                                    try {
-                                        const outputs1 = this.solver.getCachedOperation(opName, ...inputs, this.operationConfig);
-                                        if (outputs1) {
-                                            this.processState(state, combo, op, outputs1, null, nextLevel, visited, depth);
-                                        }
-                                    } catch (e) { }
-
-                                    // Reversed order
-                                    try {
-                                        const reversedCombo = [...combo].reverse();
-                                        const outputs2 = this.solver.getCachedOperation(opName, ...reversedCombo.map(s => s.shape), this.operationConfig);
-                                        if (outputs2) {
-                                            this.processState(state, reversedCombo, op, outputs2, null, nextLevel, visited, depth);
-                                        }
-                                    } catch (e) { }
-                                } else {
-                                    // For other operations, just apply with the current combination
-                                    try {
-                                        const outputs = this.solver.getCachedOperation(opName, ...inputs, this.operationConfig);
-                                        if (outputs) {
-                                            // Check if any output shape is promising (similar to target or is target)
-                                            const hasPromising = outputs.some(output =>
-                                                this.solver.calculateShapeSimilarity(output) > 0.1 ||
-                                                output === this.solver.targetShape
-                                            );
-
-                                            // Only process if promising or in early depths
-                                            if (hasPromising || depth < 3) {
-                                                this.processState(state, combo, op, outputs, null, nextLevel, visited, depth);
-                                            }
-                                        }
-                                    } catch (e) { }
+                        }
+                    } else if (inputCount === 2) {
+                        const ids = Array.from(availableIds);
+                        for (let i = 0; i < ids.length && !cancelled; i++) {
+                            for (let j = 0; j < ids.length && !cancelled; j++) {
+                                if (i === j) continue;
+                                const id1 = ids[i];
+                                const id2 = ids[j];
+                                const inputShape1 = Shape.fromShapeCode(shapes.get(id1));
+                                const inputShape2 = Shape.fromShapeCode(shapes.get(id2));
+                                const outputs = fn(inputShape1, inputShape2, config);
+                                const newIds = [];
+                                for (const outputShape of outputs) {
+                                    if (!outputShape.isEmpty()) {
+                                        const newId = nextId++;
+                                        shapes.set(newId, outputShape.toShapeCode());
+                                        newIds.push(newId);
+                                    }
+                                }
+                                if (newIds.length > 0) {
+                                    const newAvailableIds = new Set(availableIds);
+                                    newAvailableIds.delete(id1);
+                                    newAvailableIds.delete(id2);
+                                    for (const newId of newIds) {
+                                        newAvailableIds.add(newId);
+                                    }
+                                    const stateKey = getStateKey(newAvailableIds);
+                                    if (!visited.has(stateKey)) {
+                                        visited.add(stateKey);
+                                        const newPath = [...path, { type: opName, inputIds: [id1, id2], outputIds: newIds }];
+                                        const newScore = calculateStateScore(newAvailableIds);
+                                        nextDepthStates.push({ availableIds: newAvailableIds, path: newPath, depth: depth + 1, score: newScore });
+                                    }
                                 }
                             }
                         }
                     }
                 }
+            }
+            
+            // Prune states for next depth level
+            const prunedNextStates = pruneStatesAtDepth(nextDepthStates, maxStatesPerLevel);
+            
+            // Add pruned states back to queue
+            for (const state of prunedNextStates) {
+                queue.push(state);
+            }
+            
+            // Move to next depth level
+            if (queue.length > 0) {
+                depth = queue[0].depth;
+            }
 
-                // Yield control to the event loop to prevent UI freezing
+            // Periodic status update
+            const now = performance.now();
+            if (now - lastUpdate > 200) {
+                const prunedCount = nextDepthStates.length - prunedNextStates.length;
+                const pruneInfo = prunedCount > 0 ? ` | Pruned ${prunedCount} states` : '';
+                statusElement.textContent = `Depth ${depth} → ${queue.length} states | ${visited.size} total states${pruneInfo}`;
+                lastUpdate = now;
                 await new Promise(resolve => setTimeout(resolve, 0));
             }
-
-            depth++; // Increment depth for the next level
-            const now = performance.now();
-            // Update status message periodically
-            if (now - this.lastUpdate > 200) {
-                this.statusElement.textContent = `Depth ${depth} → ${nextLevel.length} states | ${visited.size} total states | Pruned to top ${this.solver.maxStatesPerLevel}`;
-                this.lastUpdate = now;
-                await new Promise(resolve => setTimeout(resolve, 0)); // Yield again for UI update
-            }
-
-            currentLevel = nextLevel; // Move to the next level
         }
 
-        // If the loop finishes without finding a solution
-        const reason = this.cancelled ? 'Cancelled' : `No solution found after ${depth} steps`;
-        this.statusElement.textContent = `${reason} (${visited.size} states)`;
-        renderGraph(null); // Clear the graph
-        this.cleanup(); // Perform cleanup
-    }
-
-    // Optimized function to get combinations, specifically for k=1 and k=2
-    getCombinationsOptimized(arr, k) {
-        if (k === 1) return arr.map(v => [v]);
-        if (k === 2) {
-            const result = [];
-            for (let i = 0; i < arr.length - 1; i++) {
-                for (let j = i + 1; j < arr.length; j++) {
-                    result.push([arr[i], arr[j]]);
-                }
-            }
-            return result;
+        if (cancelled) {
+            return null;
         }
-        return this.getCombinations(arr, k); // Fallback to general combination function
+        statusElement.textContent = 'No solution found.';
+        return null;
     }
 
-    // General recursive function to get combinations of k elements from an array
-    getCombinations(arr, k) {
-        if (k === 1) return arr.map(v => [v]);
-        const result = [];
-        for (let i = 0; i <= arr.length - k; i++) {
-            const rest = this.getCombinations(arr.slice(i + 1), k - 1);
-            for (const combo of rest) result.push([arr[i], ...combo]);
-        }
-        return result;
-    }
+    // Expose cancel function
+    shapeSolver.cancel = cancel;
 
-    // Generates a unique key for a state based on its available shapes
-    getStateKey(shapes) {
-        return shapes.map(s => s.shape).sort().join('|'); // Sort shapes for consistent key
-    }
-
-    // Processes a new state generated by an operation
-    processState(currentState, combo, op, outputs, extraData, nextLevel, visited, currentDepth) {
-        // Remove used shapes from available shapes
-        const newAvailable = currentState.availableShapes.filter(s => !combo.includes(s));
-
-        // Add new shapes generated by the operation
-        const newShapes = outputs.map(shape => ({
-            id: this.solver.nextId++,
-            shape
-        }));
-
-        newAvailable.push(...newShapes);
-
-        const stateKey = this.getStateKey(newAvailable);
-        const existingDepth = visited.get(stateKey);
-
-        // Pruning: if this state has been visited at an equal or shallower depth, skip
-        if (existingDepth !== undefined && existingDepth <= currentDepth + 1) {
-            return;
-        }
-
-        const heuristic = this.calculateStateHeuristic(newAvailable);
-        // Pruning: if heuristic is very low at deeper levels, skip
-        if (heuristic < -100 && currentDepth > 2) {
-            return;
-        }
-
-        let opStr;
-        // Format the operation string based on the operation type
-        if (op === this.solver.operations.painter) {
-            opStr = op.toString(combo[0].id, extraData[0], newShapes[0].id);
-        } else if (op === this.solver.operations.crystalGenerator) {
-            opStr = op.toString(combo[0].id, extraData[0], newShapes[0].id);
-        } else {
-            opStr = op.toString(...combo.map(s => s.id), ...newShapes.map(s => s.id));
-        }
-
-        // Append the new operation to the solution path
-        const newSolution = `${currentState.solution};${opStr}`;
-
-        visited.set(stateKey, currentDepth + 1); // Mark state as visited with its depth
-        nextLevel.push({
-            availableShapes: newAvailable,
-            solution: newSolution,
-            heuristic: heuristic
-        });
-    }
-
-    // Cancels the ongoing search
-    cancel() {
-        this.cancelled = true;
-        this.statusElement.textContent = 'Cancelled.';
-        this.cleanup();
-    }
-
-    // Cleans up after the solver finishes or is cancelled
-    cleanup() {
-        if (this.onSolverFinishedCallback) {
-            this.onSolverFinishedCallback();
-        }
-    }
+    // Start solver
+    return runSolver();
 }
+
+export { shapeSolver };
