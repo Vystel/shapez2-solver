@@ -1,5 +1,5 @@
 import { createShapeCanvas, createShapeElement, SHAPES_CONFIG, COLOR_MODES, colorValues } from './shapeRendering.js';
-import { Shape, _extractLayersByColor } from './shapeOperations.js';
+import { Shape, _extractLayers } from './shapeOperations.js';
 import { cyInstance, copyGraphToClipboard, applyGraphLayout, renderGraph } from './operationGraph.js';
 import { showValidationErrors } from './shapeValidation.js';
 
@@ -109,15 +109,30 @@ document.getElementById('starting-shapes').addEventListener('click', (e) => {
 
 // Auto Input Shapes
 document.getElementById('extract-shapes-btn').addEventListener('click', () => {
+    const modal = document.getElementById('extract-modal');
+    modal.style.display = 'flex';
+});
+
+document.getElementById('extract-cancel').addEventListener('click', () => {
+    const modal = document.getElementById('extract-modal');
+    modal.style.display = 'none';
+});
+
+document.getElementById('extract-confirm').addEventListener('click', () => {
     const targetInput = document.getElementById('target-shape');
     const shapeCode = targetInput.value.trim();
+    const extractMode = document.querySelector('input[name="extract-mode"]:checked').value;
+    const includePins = document.getElementById('include-pins').checked;
+    const includeColor = document.getElementById('include-color').checked;
 
     if (!shapeCode) {
         alert('Please enter a target shape code.');
+        document.getElementById('extract-modal').style.display = 'none';
         return;
     }
 
     if (!showValidationErrors(shapeCode, 'target shape')) {
+        document.getElementById('extract-modal').style.display = 'none';
         return;
     }
 
@@ -127,7 +142,12 @@ document.getElementById('extract-shapes-btn').addEventListener('click', () => {
         startingShapesContainer.innerHTML = '';
 
         // Extract shape variants
-        const extractedShapes = _extractLayersByColor(Shape.fromShapeCode(shapeCode));
+        const extractedShapes = _extractLayers(
+            Shape.fromShapeCode(shapeCode),
+            extractMode,
+            includePins,
+            includeColor
+        );
 
         // Create and append shape elements
         extractedShapes.forEach(shapeVariant => {
@@ -145,8 +165,11 @@ document.getElementById('extract-shapes-btn').addEventListener('click', () => {
 
             startingShapesContainer.appendChild(shapeItem);
         });
+
+        document.getElementById('extract-modal').style.display = 'none';
     } catch (error) {
         alert(`Failed to extract shapes: ${error.message}`);
+        document.getElementById('extract-modal').style.display = 'none';
     }
 });
 

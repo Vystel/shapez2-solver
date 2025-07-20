@@ -351,39 +351,43 @@ export function _getAllRotations(shape, config) {
     return rotations;
 }
 
-export function _extractLayersByColor(shape) {
+export function _extractLayers(shape, mode = 'part', includePins = true, includeColor = true) {
     const numParts = shape.numParts;
-
-    const groupedLayers = []; // Final list of layers to return
+    const groupedLayers = [];
 
     shape.layers.forEach((layer) => {
-        const seenColors = {}; // Track color -> list of positions and shapes
+        const seen = {};
 
-        // Group parts by color character
         layer.forEach((part, partIndex) => {
-            if (
-                part.shape === NOTHING_CHAR ||
-                part.shape === PIN_CHAR ||
-                part.shape === CRYSTAL_CHAR
-            ) return;
+            if (!includePins && (part.shape === PIN_CHAR)) return;
+            if (part.shape === NOTHING_CHAR || part.shape === CRYSTAL_CHAR) return;
 
-            if (!seenColors[part.color]) {
-                seenColors[part.color] = [];
+            let key;
+            if (mode === 'layer') {
+                key = "valid";
+            } else if (mode === 'part') {
+                key = part.shape;
+            } else if (mode === 'color') {
+                key = part.color;
+            } else if (mode === 'part-color') {
+                key = `${part.shape}-${part.color}`;
             }
-            seenColors[part.color].push({ index: partIndex, shape: part.shape });
+
+            if (!seen[key]) {
+                seen[key] = [];
+            }
+            seen[key].push({ index: partIndex, shape: part.shape, color: part.color });
         });
 
-        // For each unique color, create a new layer row (shapes with color 'u')
-        Object.entries(seenColors).forEach(([, entries]) => {
+        Object.entries(seen).forEach(([, entries]) => {
             const newLayer = Array.from({ length: numParts }, () => new ShapePart(NOTHING_CHAR, NOTHING_CHAR));
-            entries.forEach(({ index, shape }) => {
-                newLayer[index] = new ShapePart(shape, 'u');
+            entries.forEach(({ index, shape, color }) => {
+                newLayer[index] = new ShapePart(shape, includeColor ? color : 'u');
             });
             groupedLayers.push(newLayer);
         });
     });
 
-    // Convert each ShapePart[] into a string
     return groupedLayers.map(layer => layer.map(part => part.shape + part.color).join(''));
 }
 

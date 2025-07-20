@@ -34,70 +34,31 @@
                 <button id="add-shape-btn">+</button>
             </div>
             <div id="starting-shapes"></div>
-            <button id="extract-shapes-btn" class="wide">Auto</button>
+            <button id="extract-shapes-btn" class="wide">Extract from Target</button>
         </div>
 
         <div id="options-content" class="tab-content">
             <h2>Enabled Operations</h2>
             <p>Operations allowed for use. Disable redundant operations for quicker solutions!</p>
             <div id="enabled-operations">
-
-                <!-- Rotator Variants -->
                 <div class="operation-row">
-                    <div class="operation-item enabled" data-operation="Rotator CW">
-                        <img src="images/rotator-cw.png" alt="Rotator CW" class="operation-icon">
-                        <span>CW</span>
-                    </div>
-                    <div class="operation-item enabled" data-operation="Rotator CCW">
-                        <img src="images/rotator-ccw.png" alt="Rotator CCW" class="operation-icon">
-                        <span>CCW</span>
-                    </div>
-                    <div class="operation-item enabled" data-operation="Rotator 180">
-                        <img src="images/rotator-180.png" alt="Rotator 180" class="operation-icon">
-                        <span>180</span>
-                    </div>
+                    <div class="operation-item enabled" data-operation="Rotator CW"><img src="images/rotator-cw.png" alt="Rotator CW" class="operation-icon"><span>CW</span></div>
+                    <div class="operation-item enabled" data-operation="Rotator CCW"><img src="images/rotator-ccw.png" alt="Rotator CCW" class="operation-icon"><span>CCW</span></div>
+                    <div class="operation-item enabled" data-operation="Rotator 180"><img src="images/rotator-180.png" alt="Rotator 180" class="operation-icon"><span>180</span></div>
                 </div>
-
-                <!-- Half Destroyer, Cutter, Swapper -->
                 <div class="operation-row">
-                    <div class="operation-item enabled" data-operation="Half Destroyer">
-                        <img src="images/half-destroyer.png" alt="Half Destroyer" class="operation-icon">
-                        <span>Half</span>
-                    </div>
-                    <div class="operation-item enabled" data-operation="Cutter">
-                        <img src="images/cutter.png" alt="Cutter" class="operation-icon">
-                        <span>Cut</span>
-                    </div>
-                    <div class="operation-item enabled" data-operation="Swapper">
-                        <img src="images/swapper.png" alt="Swapper" class="operation-icon">
-                        <span>Swap</span>
-                    </div>
+                    <div class="operation-item enabled" data-operation="Half Destroyer"><img src="images/half-destroyer.png" alt="Half Destroyer" class="operation-icon"><span>Half</span></div>
+                    <div class="operation-item enabled" data-operation="Cutter"><img src="images/cutter.png" alt="Cutter" class="operation-icon"><span>Cut</span></div>
+                    <div class="operation-item enabled" data-operation="Swapper"><img src="images/swapper.png" alt="Swapper" class="operation-icon"><span>Swap</span></div>
                 </div>
-
-                <!-- Stacker, Painter -->
                 <div class="operation-row">
-                    <div class="operation-item enabled" data-operation="Stacker">
-                        <img src="images/stacker.png" alt="Stacker" class="operation-icon">
-                        <span>Stacker</span>
-                    </div>
-                    <div class="operation-item enabled" data-operation="Painter">
-                        <img src="images/painter.png" alt="Painter" class="operation-icon">
-                        <span>Painter</span>
-                    </div>
+                    <div class="operation-item enabled" data-operation="Stacker"><img src="images/stacker.png" alt="Stacker" class="operation-icon"><span>Stacker</span></div>
+                    <div class="operation-item enabled" data-operation="Painter"><img src="images/painter.png" alt="Painter" class="operation-icon"><span>Painter</span></div>
                 </div>
-
-                <!-- Pin Pusher, Crystal Generator -->
                 <div class="operation-row">
-                    <div class="operation-item enabled" data-operation="Pin Pusher">
-                        <img src="images/pin-pusher.png" alt="Pin Pusher" class="operation-icon">
-                        <span>Pin Pusher</span>
-                    </div>
-                    <div class="operation-item enabled" data-operation="Crystal Generator">
-                        <img src="images/crystal-generator.png" alt="Crystal Generator" class="operation-icon">
-                        <span>Crystal Generator</span>
-                    </div>
+                    <div class="operation-item enabled" data-operation="Pin Pusher"><img src="images/pin-pusher.png" alt="Pin Pusher" class="operation-icon"><span>Pin Pusher</span></div>
+                    <div class="operation-item enabled" data-operation="Crystal Generator"><img src="images/crystal-generator.png" alt="Crystal Generator" class="operation-icon"><span>Crystal Generator</span></div>
                 </div>
-
             </div>
 
             <div id="separator"></div>
@@ -115,7 +76,7 @@
                     <input type="checkbox" class="operation-toggle" id="prevent-waste" />
                     Prevent Waste
                 </label>
-                <p class="option-desc">Only accept solutions if all remaining shapes match the target.</p>
+                <p class="option-desc">If checked, all remaining shapes must match the target.</p>
             </div>
 
             <div class="option-group">
@@ -165,6 +126,27 @@
                     <option value="RL">Right to Left</option>
                     <option value="BT">Bottom to Top</option>
                 </select>
+            </div>
+        </div>
+    </div>
+
+    <div id="extract-modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Shape Extraction Options</h2>
+            <div class="option-group">
+                <label>Extract by Unique:</label>
+                <div class="extraction-option"><input type="radio" name="extract-mode" value="color" checked> Color</div>
+                <div class="extraction-option"><input type="radio" name="extract-mode" value="layer"> Layer</div>
+                <div class="extraction-option"><input type="radio" name="extract-mode" value="part"> Part</div>
+                <div class="extraction-option"><input type="radio" name="extract-mode" value="part-color"> Part & Color</div>
+            </div>
+            <div class="option-group">
+                <label class="checkbox-label"><input type="checkbox" id="include-pins"> Include Pins?</label>
+                <label class="checkbox-label"><input type="checkbox" id="include-color"> Include Color?</label>
+            </div>
+            <div class="modal-buttons">
+                <button id="extract-confirm">Extract</button>
+                <button id="extract-cancel">Cancel</button>
             </div>
         </div>
     </div>
