@@ -35,7 +35,7 @@ export function renderGraph(solutionPath) {
             data: {
                 id: opId,
                 label: opLabel,
-                image: `images/${operation.toLowerCase().replace(/\s+/g, '-')}.png`,
+                image: `images/operations/${operation.toLowerCase().replace(/\s+/g, '-')}.png`,
                 backgroundColor: backgroundColor
             },
             classes: nodeClasses
