@@ -1,4 +1,4 @@
-import { createShapeCanvas, createShapeElement, SHAPES_CONFIG, COLOR_MODES, colorValues } from './shapeRendering.js';
+import { createShapeCanvas, createShapeElement, colorValues } from './shapeRendering.js';
 import { Shape, _extractLayers } from './shapeOperations.js';
 import { cyInstance, copyGraphToClipboard, applyGraphLayout, renderGraph } from './operationGraph.js';
 import { showValidationErrors } from './shapeValidation.js';
@@ -6,7 +6,7 @@ import { showValidationErrors } from './shapeValidation.js';
 // Changing Color Mode
 export function getCurrentColorMode() {
     const colorModeSelect = document.getElementById('color-mode-select');
-    return colorModeSelect ? colorModeSelect.value : COLOR_MODES.RGB;
+    return colorModeSelect ? colorModeSelect.value : "rgb";
 }
 
 function refreshShapeColors() {
@@ -40,7 +40,7 @@ function refreshShapeColors() {
         document.querySelectorAll('.shape-canvas').forEach(canvas => {
             const shapeCode = canvas.dataset.shapeCode;
             if (shapeCode) {
-                const newCanvas = createShapeCanvas(shapeCode, 40, SHAPES_CONFIG.QUAD, getCurrentColorMode());
+                const newCanvas = createShapeCanvas(shapeCode, 40);
                 canvas.replaceWith(newCanvas);
                 newCanvas.className = 'shape-canvas';
                 newCanvas.dataset.shapeCode = shapeCode;

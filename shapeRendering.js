@@ -1,17 +1,8 @@
 // Special thanks to https://github.com/Loupau38/loupau38.github.io/blob/main/assets/scripts/shapeViewer.js
 import { getCurrentColorMode } from './main.js';
 
-// exported constants
-export const SHAPES_CONFIG = {
-    QUAD: "quad",
-    HEX: "hex"
-};
-
-export const COLOR_MODES = {
-    RGB: "rgb",
-    RYB: "ryb", 
-    CMYK: "cmyk"
-};
+const quadShapesConfig = "quad";
+const hexShapesConfig = "hex";
 
 export const baseColors = {
     "u": "rgb(164,158,165)",
@@ -26,38 +17,36 @@ export const baseColors = {
     "p": "rgb(167,41,207)",
     "o": "rgb(213,133,13)",
 };
-
-// internal constants
 export const colorValues = {
-    "rgb" : {
-        "u" : baseColors["u"],
-        "r" : baseColors["r"],
-        "g" : baseColors["g"],
-        "b" : baseColors["b"],
-        "c" : baseColors["c"],
-        "m" : baseColors["m"],
-        "y" : baseColors["y"],
-        "w" : baseColors["w"]
+    "rgb": {
+        "u": baseColors["u"],
+        "r": baseColors["r"],
+        "g": baseColors["g"],
+        "b": baseColors["b"],
+        "c": baseColors["c"],
+        "m": baseColors["m"],
+        "y": baseColors["y"],
+        "w": baseColors["w"]
     },
-    "ryb" : {
-        "u" : baseColors["u"],
-        "r" : baseColors["r"],
-        "g" : baseColors["y"],
-        "b" : baseColors["b"],
-        "c" : baseColors["g"],
-        "m" : baseColors["p"],
-        "y" : baseColors["o"],
-        "w" : baseColors["k"]
+    "ryb": {
+        "u": baseColors["u"],
+        "r": baseColors["r"],
+        "g": baseColors["y"],
+        "b": baseColors["b"],
+        "c": baseColors["g"],
+        "m": baseColors["p"],
+        "y": baseColors["o"],
+        "w": baseColors["k"]
     },
-    "cmyk" : {
-        "u" : baseColors["u"],
-        "r" : baseColors["c"],
-        "g" : baseColors["m"],
-        "b" : baseColors["y"],
-        "c" : baseColors["r"],
-        "m" : baseColors["g"],
-        "y" : baseColors["b"],
-        "w" : baseColors["k"]
+    "cmyk": {
+        "u": baseColors["u"],
+        "r": baseColors["c"],
+        "g": baseColors["m"],
+        "b": baseColors["y"],
+        "c": baseColors["r"],
+        "m": baseColors["g"],
+        "y": baseColors["b"],
+        "w": baseColors["k"]
     }
 };
 
@@ -66,9 +55,13 @@ const BGCircleColor = "rgba(0,0,0,0)";
 const shadowColor = "rgba(50,50,50,0.5)";
 const pinColor = "rgb(71,69,75)";
 
+// according to 'dnSpy > ShapeMeshGenerator > GenerateShapeMesh()', this value should be 0.85
+// according to ingame screenshots, it should be 0.77
+// according to me, the closest to ingame is 0.8
+// but, to me, the best for this context is 0.75
 const layerSizeReduction = 0.75;
 
-// original constants
+// below are sizes in pixels taken from a screenshot of the ingame shape viewer
 const defaultImageSize = 602;
 const defaultBGCircleDiameter = 520;
 const defaultShapeDiameter = 407;
@@ -82,7 +75,6 @@ const sqrt2 = Math.sqrt(2);
 const sqrt3 = Math.sqrt(3);
 const sqrt6 = Math.sqrt(6);
 
-// utilities
 function darkenColor(color) {
     color = color.slice(4, -1);
     let [r, g, b] = color.split(",");
@@ -105,8 +97,8 @@ function drawPolygon(ctx, points) {
     ctx.closePath();
 }
 
-// Render a shape part
 function renderPart(ctx, partShape, partColor, layerIndex, shapesConfig, colorMode, borderScale) {
+
     const drawShadow = layerIndex != 0;
     const color = colorValues[colorMode][partColor];
     const curBorderSize = borderSize / borderScale;
@@ -129,7 +121,7 @@ function renderPart(ctx, partShape, partColor, layerIndex, shapesConfig, colorMo
     }
 
     if (partShape == "-") {
-        return [(() => {}),(() => {})]
+        return [(() => { }), (() => { })]
     }
 
     if (partShape == "C") {
@@ -222,11 +214,12 @@ function renderPart(ctx, partShape, partColor, layerIndex, shapesConfig, colorMo
     }
 
     if (partShape == "P") {
-        let pinCenterX, pinCenterY;
-        if (shapesConfig == SHAPES_CONFIG.QUAD) {
+        let pinCenterX;
+        let pinCenterY;
+        if (shapesConfig == quadShapesConfig) {
             pinCenterX = 1 / 3;
             pinCenterY = 2 / 3;
-        } else if (shapesConfig == SHAPES_CONFIG.HEX) {
+        } else if (shapesConfig == hexShapesConfig) {
             pinCenterX = sqrt2 / 6;
             pinCenterY = 1 - (sqrt6 / 6);
         }
@@ -246,13 +239,13 @@ function renderPart(ctx, partShape, partColor, layerIndex, shapesConfig, colorMo
                 ctx.fillStyle = pinColor;
                 ctx.fill();
             }),
-            (() => {})
+            (() => { })
         ];
     }
 
     if (partShape == "c") {
         const darkenedColor = darkenColor(color);
-        if (shapesConfig == SHAPES_CONFIG.QUAD) {
+        if (shapesConfig == quadShapesConfig) {
             const darkenedAreasOffset = layerIndex % 2 == 0 ? 0 : 22.5;
             const startAngle1 = radians(360 - (67.5 - darkenedAreasOffset));
             const stopAngle1 = radians(360 - (90 - darkenedAreasOffset));
@@ -284,10 +277,14 @@ function renderPart(ctx, partShape, partColor, layerIndex, shapesConfig, colorMo
                     ctx.fillStyle = darkenedColor;
                     ctx.fill();
                 }),
-                (() => {})
+                (() => { })
             ];
-        } else if (shapesConfig == SHAPES_CONFIG.HEX) {
-            const points = [[0, 0], [sqrt3 / 2, 0.5], [0, 1]];
+        } else if (shapesConfig == hexShapesConfig) {
+            const points = [
+                [0, 0],
+                [sqrt3 / 2, 0.5],
+                [0, 1]
+            ];
             const shadowPoints = [
                 [points[0][0], points[0][1] - (curBorderSize / 2)],
                 [points[1][0] + ((sqrt3 / 2) * (curBorderSize / 2)), points[1][1] - (curBorderSize / 4)],
@@ -314,7 +311,7 @@ function renderPart(ctx, partShape, partColor, layerIndex, shapesConfig, colorMo
                     ctx.fillStyle = darkenedColor;
                     ctx.fill();
                 }),
-                (() => {})
+                (() => { })
             ];
         }
     }
@@ -322,7 +319,6 @@ function renderPart(ctx, partShape, partColor, layerIndex, shapesConfig, colorMo
     throw new Error("Invalid shape");
 }
 
-// utility functions for transforming context
 function scaleContext(ctx, scale) {
     const translation = (1 - scale) / 2;
     ctx.translate(translation, translation);
@@ -335,13 +331,12 @@ function rotateContext(ctx, partIndex, numParts) {
     ctx.translate(0, -1);
 }
 
-// main renderer
-export function renderShape(context, size, shapeCode, shapesConfig = SHAPES_CONFIG.QUAD, colorMode = COLOR_MODES.RGB) {
+export function renderShape(context, size, shapeCode, shapesConfig, colorMode) {
+
     const layers = shapeCode.split(":");
     const numLayers = layers.length;
     const numParts = layers[0].length / 2;
     const shapeParts = [];
-    
     for (let layerIndex = 0; layerIndex < numLayers; layerIndex++) {
         const layer = layers[layerIndex];
         shapeParts.push([]);
@@ -350,16 +345,12 @@ export function renderShape(context, size, shapeCode, shapesConfig = SHAPES_CONF
         }
     }
 
-    if (!colorMode) {
-        const colorModeSelect = document.getElementById('color-mode-select');
-        colorMode = colorModeSelect ? colorModeSelect.value : COLOR_MODES.RGB;
-    }
-
     context.save();
+
     context.scale(size, size);
+
     context.clearRect(0, 0, 1, 1);
 
-    // Draw background circle
     context.beginPath();
     context.arc(0.5, 0.5, BGCircleDiameter / 2, 0, 2 * Math.PI);
     context.closePath();
@@ -370,6 +361,7 @@ export function renderShape(context, size, shapeCode, shapesConfig = SHAPES_CONF
 
     for (let layerIndex = 0; layerIndex < numLayers; layerIndex++) {
         const layer = shapeParts[layerIndex];
+
         context.save();
         const curLayerScale = layerSizeReduction ** layerIndex;
         scaleContext(context, curLayerScale);
@@ -379,6 +371,7 @@ export function renderShape(context, size, shapeCode, shapesConfig = SHAPES_CONF
 
         for (let partIndex = 0; partIndex < numParts; partIndex++) {
             const [partShape, partColor] = layer[partIndex];
+
             context.save();
             rotateContext(context, partIndex, numParts);
             const [shapeRenderer, borderRenderer] = renderPart(
@@ -392,7 +385,9 @@ export function renderShape(context, size, shapeCode, shapesConfig = SHAPES_CONF
             );
             shapeRenderer();
             partBorders.push(borderRenderer);
+
             context.restore();
+
         }
 
         for (let partIndex = 0; partIndex < partBorders.length; partIndex++) {
@@ -404,39 +399,46 @@ export function renderShape(context, size, shapeCode, shapesConfig = SHAPES_CONF
         }
 
         context.restore();
+
     }
 
     context.restore();
+
 }
 
 // Utility stuff
-export function createShapeCanvas(shapeCode, size = 100, shapesConfig = SHAPES_CONFIG.QUAD) {
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d');
-    const colorMode = getCurrentColorMode();
-    renderShape(ctx, size, shapeCode, shapesConfig, colorMode);
-    return canvas;
+export function createShapeCanvas(shapeCode, size = 100) {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const colorMode = getCurrentColorMode();
+
+  // Determine shapesConfig based on shapeCode
+  const firstLayer = shapeCode.split(":")[0];
+  const numParts = firstLayer.length / 2;
+  const shapesConfig = numParts === 6 ? hexShapesConfig : quadShapesConfig;
+
+  renderShape(ctx, size, shapeCode, shapesConfig, colorMode);
+  return canvas;
 }
 
 export function createShapeElement(shapeCode) {
-    const container = document.createElement('div');
-    container.className = 'shape-display';
+  const container = document.createElement('div');
+  container.className = 'shape-display';
 
-    // Create canvas with current color mode
-    const canvas = createShapeCanvas(shapeCode, 40, SHAPES_CONFIG.QUAD, getCurrentColorMode());
-    canvas.className = 'shape-canvas';
+  const canvas = createShapeCanvas(shapeCode, 40);
+  canvas.className = 'shape-canvas';
 
-    // Store shape code as data attribute for easy refresh
-    canvas.dataset.shapeCode = shapeCode;
+  // Store shape code as data attribute for easy refresh
+  canvas.dataset.shapeCode = shapeCode;
 
-    const label = document.createElement('span');
-    label.className = 'shape-label';
-    label.textContent = shapeCode;
+  const label = document.createElement('span');
+  label.className = 'shape-label';
+  label.textContent = shapeCode;
 
-    container.appendChild(canvas);
-    container.appendChild(label);
+  container.appendChild(canvas);
+  container.appendChild(label);
 
-    return container;
+  return container;
 }
