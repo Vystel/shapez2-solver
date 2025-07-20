@@ -212,6 +212,7 @@ document.getElementById('solve-btn').addEventListener('click', async () => {
         const maxStatesPerLevel = parseInt(document.getElementById('max-states-per-level').value) || 1000;
         const preventWaste = document.getElementById('prevent-waste').checked;
         const orientationSensitive = document.getElementById('orientation-sensitive').checked;
+        const monolayerPainting = document.getElementById('monolayer-painting').checked;
 
         // Validate target shape code
         if (!showValidationErrors(targetShapeCode, 'target shape')) {
@@ -264,9 +265,10 @@ document.getElementById('solve-btn').addEventListener('click', async () => {
                 startingShapeCodes,
                 enabledOperations,
                 maxLayers,
+                maxStatesPerLevel,
                 preventWaste,
                 orientationSensitive,
-                maxStatesPerLevel
+                monolayerPainting
             }
         });
     } else {

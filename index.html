@@ -76,7 +76,7 @@
                     <input type="checkbox" class="operation-toggle" id="prevent-waste" />
                     Prevent Waste
                 </label>
-                <p class="option-desc">If checked, all remaining shapes must match the target.</p>
+                <p class="option-desc">If checked, all remaining shapes must match the target in order for the solution to be considered valid.</p>
             </div>
 
             <div class="option-group">
@@ -84,7 +84,15 @@
                     <input type="checkbox" class="operation-toggle" id="orientation-sensitive" />
                     Orientation-Sensitive
                 </label>
-                <p class="option-desc">Checks if a shape matches the target in the exact orientation only.</p>
+                <p class="option-desc">Only identify a shape as the target if its orientation is an exact match.</p>
+            </div>
+
+            <div class="option-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" class="operation-toggle" id="monolayer-painting" />
+                    Monolayer Painting
+                </label>
+                <p class="option-desc">Only consider painting a shape if it has one layer; for cleaner-looking solutions.</p>
             </div>
 
             <div id="separator"></div>

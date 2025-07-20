@@ -28,9 +28,10 @@ self.onmessage = async function (e) {
             startingShapeCodes,
             enabledOperations,
             maxLayers,
+            maxStatesPerLevel,
             preventWaste,
             orientationSensitive,
-            maxStatesPerLevel
+            monolayerPainting
         } = data;
 
         cancelled = false;
@@ -39,9 +40,10 @@ self.onmessage = async function (e) {
             startingShapeCodes,
             enabledOperations,
             maxLayers,
+            maxStatesPerLevel,
             preventWaste,
             orientationSensitive,
-            maxStatesPerLevel
+            monolayerPainting
         );
         self.postMessage({ type: 'result', result });
     } else if (action === 'cancel') {
@@ -50,7 +52,7 @@ self.onmessage = async function (e) {
     }
 };
 
-async function shapeSolver(targetShapeCode, startingShapeCodes, enabledOperations, maxLayers, preventWaste, orientationSensitive, maxStatesPerLevel = Infinity) {
+async function shapeSolver(targetShapeCode, startingShapeCodes, enabledOperations, maxLayers, maxStatesPerLevel = Infinity, preventWaste, orientationSensitive, monolayerPainting) {
     const target = Shape.fromShapeCode(targetShapeCode);
     const targetCrystalColors = _getCrystalColors(target);
     const config = new ShapeOperationConfig(maxLayers);
@@ -113,10 +115,10 @@ async function shapeSolver(targetShapeCode, startingShapeCodes, enabledOperation
         if (states.length <= maxStates) {
             return states;
         }
-        
+
         // Sort by score (higher is better)
         states.sort((a, b) => b.score - a.score);
-        
+
         // Keep only the top maxStates
         return states.slice(0, maxStates);
     }
@@ -166,6 +168,9 @@ async function shapeSolver(targetShapeCode, startingShapeCodes, enabledOperation
                         if (cancelled) break;
                         const inputShape = Shape.fromShapeCode(shapes.get(id));
                         if (needsColor) {
+                            if (monolayerPainting && opName === "Painter" && inputShape.layers.length !== 1) {
+                                continue; // Skip painting this shape if it has more than one layer
+                            }
                             const colors = opName === "Painter" ? _getPaintColors(inputShape, target) : targetCrystalColors;
                             for (const color of colors) {
                                 const outputs = fn(inputShape, color, config);
