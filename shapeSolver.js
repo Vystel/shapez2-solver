@@ -282,7 +282,7 @@ async function shapeSolver(targetShapeCode, startingShapeCodes, enabledOperation
             const pruneInfo = prunedCount > 0 ? ` | Pruned ${prunedCount} States` : '';
             self.postMessage({
                 type: 'status',
-                message: `Depth ${depth} → ${queue.length} States | ${visited.size} Total States${pruneInfo}`
+                message: `Solving at Depth ${depth} → ${queue.length} States | ${visited.size} Total States${pruneInfo}`
             });
             lastUpdate = now;
         }

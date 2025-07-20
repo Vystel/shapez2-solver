@@ -244,7 +244,7 @@ document.getElementById('solve-btn').addEventListener('click', async () => {
                     if (solutionPath) {
                         renderGraph(solutionPath);
                         const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
-                        statusElement.textContent = `Solved in ${elapsed}s using ${depth} Operations`;
+                        statusElement.textContent = `Solved in ${elapsed}s at Depth ${depth} → ${statesExplored} States Explored`;
                     } else {
                         statusElement.textContent = `No solution found.`;
                     }
