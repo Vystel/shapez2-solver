@@ -155,6 +155,16 @@ export function renderGraph(solutionPath) {
         autoungrabify: false,
         wheelSensitivity: 0.1
     });
+
+    // Click-to-copy for shape nodes
+    cyInstance.on('tap', 'node.shape', async (evt) => {
+        const code = evt.target.data('label');
+        try {
+            await navigator.clipboard.writeText(code);
+        } catch (err) {
+            console.error('Failed to copy:', err);
+        }
+    });
 }
 
 export async function copyGraphToClipboard() {
