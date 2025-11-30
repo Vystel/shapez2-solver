@@ -331,7 +331,7 @@ export function renderSpaceGraph(graph) {
         .linkOpacity(0.4)
         .linkColor(link => link.kind === 'to-op' ? '#999' : link.kind === 'from-op' ? '#FC9A19' : '#999')
         .linkDirectionalArrowLength(4)
-        .linkDirectionalArrowRelPos(0.5)
+        .linkDirectionalArrowRelPos(1)
         
         .nodeThreeObject(node => {
             const group = new THREE.Group();
