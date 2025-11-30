@@ -7,6 +7,17 @@ export let cyInstance = null;
 export function renderGraph(solutionPath) {
     const container = document.getElementById('graph-container');
     container.innerHTML = '';
+
+    if (cyInstance) {
+        cyInstance.destroy();
+        cyInstance = null;
+    }
+
+    if (graph3dInstance) {
+        graph3dInstance._destructor();
+        graph3dInstance = null;
+    }
+
     if (!solutionPath || solutionPath.length === 0) return;
 
     const elements = [];
@@ -168,24 +179,58 @@ export function renderGraph(solutionPath) {
 }
 
 export async function copyGraphToClipboard() {
-    const cyInstance = getCyInstance(); // Get the Cytoscape instance
-    if (!cyInstance) return;
+    const cy = cyInstance;
+    const g3d = graph3dInstance;
 
-    const graphImage = cyInstance.png({
-        output: 'blob',
-        scale: 1,
-        full: true
-    });
+    // --- 2D GRAPH (Cytoscape) ---
+    if (cy) {
+        const graphImage = cy.png({
+            output: 'blob',
+            scale: 1,
+            full: true
+        });
 
-    try {
-        const clipboardItem = new ClipboardItem({ 'image/png': graphImage });
-        await navigator.clipboard.write([clipboardItem]);
-        alert('Graph image copied to clipboard!');
-    } catch (error) {
-        console.error('Failed to copy image to clipboard:', error);
-        alert('Failed to copy image to clipboard. Your browser may not support this or you need to grant permission.');
+        try {
+            const clipboardItem = new ClipboardItem({ 'image/png': graphImage });
+            await navigator.clipboard.write([clipboardItem]);
+            alert('Graph image copied to clipboard!');
+        } catch (error) {
+            console.error('Failed to copy image to clipboard:', error);
+            alert('Failed to copy image to clipboard.');
+        }
+
+        return;
     }
+
+    // --- 3D GRAPH (ForceGraph3D) ---
+    if (g3d) {
+        const renderer = g3d.renderer();
+        const canvas = renderer.domElement;
+
+        renderer.render(g3d.scene(), g3d.camera());
+
+        canvas.toBlob(async blob => {
+            if (!blob) {
+                alert('Failed to export 3D graph.');
+                return;
+            }
+
+            try {
+                const item = new ClipboardItem({ 'image/png': blob });
+                await navigator.clipboard.write([item]);
+                alert('Graph image copied to clipboard!');
+            } catch (err) {
+                console.error('Failed to copy 3D image:', err);
+                alert('Failed to copy image to clipboard.');
+            }
+        }, 'image/png');
+
+        return;
+    }
+
+    alert('No graph to copy.');
 }
+
 
 export function applyGraphLayout(direction) {
     const cyInstance = getCyInstance();
@@ -206,4 +251,114 @@ export function applyGraphLayout(direction) {
 
 export function getCyInstance() {
     return cyInstance;
+}
+
+export let graph3dInstance = null;
+
+export function renderSpaceGraph(graph) {
+    const container = document.getElementById('graph-container');
+    container.innerHTML = '';
+    container.style.position = 'relative';
+
+    if (graph3dInstance) {
+        graph3dInstance._destructor();
+        graph3dInstance = null;
+    }
+
+    if (cyInstance) {
+        cyInstance.destroy();
+        cyInstance = null;
+    }
+
+    if (!graph) return;
+
+    const nodes = [];
+    const links = [];
+    const nodeMap = new Map();
+
+    // Shape nodes
+    for (const s of graph.shapes) {
+        const nodeId = s.id;
+        const canvas = createShapeCanvas(s.code, 120);
+
+        const node = {
+            id: nodeId,
+            kind: 'shape',
+            label: s.code,
+            image: canvas.toDataURL()
+        };
+        nodeMap.set(nodeId, node);
+        nodes.push(node);
+    }
+
+    // Operation nodes
+    for (const op of graph.ops) {
+        const opId = op.id;
+
+        const img = `images/operations/${op.type.toLowerCase().replace(/\s+/g,'-')}.png`;
+
+        nodes.push({
+            id: opId,
+            kind: 'op',
+            label: op.type,
+            image: img
+        });
+    }
+    
+
+    // Edges
+    for (const e of graph.edges) {
+        links.push({
+            source: e.source,
+            target: e.target,
+            kind:
+                e.target.startsWith('op-') ? 'to-op' :
+                e.source.startsWith('op-') ? 'from-op' :
+                ''
+        });
+    }
+
+    // Initialize 3D force graph
+    graph3dInstance = ForceGraph3D()(container)
+        .graphData({ nodes, links })
+        .showNavInfo(false)
+        .forceEngine('d3')
+        .d3AlphaDecay(0.005)
+        .d3VelocityDecay(0.1)
+        .backgroundColor('rgba(0,0,0,0)')
+        .nodeAutoColorBy(null)
+        .nodeOpacity(0.9)
+        .linkOpacity(0.4)
+        .linkColor(link => link.kind === 'to-op' ? '#999' : link.kind === 'from-op' ? '#FC9A19' : '#999')
+        .linkDirectionalArrowLength(4)
+        .linkDirectionalArrowRelPos(0.5)
+        
+        .nodeThreeObject(node => {
+            const group = new THREE.Group();
+            let sprite;
+
+            if (node.kind === 'shape') {
+                const tex = new THREE.TextureLoader().load(node.image, t => { t.colorSpace = THREE.SRGBColorSpace; t.premultiplyAlpha = false; });
+                const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, premultipliedAlpha: false, depthTest: true, depthWrite: false, });
+                sprite = new THREE.Sprite(mat);
+                sprite.scale.set(15, 15, 1);
+            } else {
+                const tex = new THREE.TextureLoader().load(node.image, t => { t.colorSpace = THREE.SRGBColorSpace; t.premultiplyAlpha = false; });
+                const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, premultipliedAlpha: false, depthTest: true, depthWrite: false, });
+                sprite = new THREE.Sprite(mat);
+                sprite.scale.set(12, 12, 1);
+            }
+
+            group.add(sprite);
+            return group;
+        })
+        .nodeLabel(node => node.label);
+
+    graph3dInstance.onNodeClick(node => {
+        if (node.kind === 'shape') {
+            navigator.clipboard.writeText(node.label).catch(() => {});
+        }
+    });
+
+    return graph3dInstance;
 }

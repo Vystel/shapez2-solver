@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Shapez 2 Solver</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
 </head>
 
 <body>
@@ -19,7 +20,7 @@
 
         <div id="shapes-content" class="tab-content active">
             <h2>Target Shape</h2>
-            <p>The shape you want to make. Any amount of parts are supported!</p>
+            <p>A specific shape you want the solver to make. This will try to find a valid production chain and will show it as a hierarchical graph.</p>
             <div id="input-button-container">
                 <input type="text" id="target-shape" placeholder="Shape Code">
                 <button id="solve-btn">Solve</button>
@@ -27,8 +28,17 @@
 
             <div id="separator"></div>
 
+            <h2>Shape Explorer</h2>
+            <p>Choose a depth to explore all shapes that can be created within that many operation steps from the starting set. This produces a 3D graph of the entire transformation space.</p>
+            <div id="input-button-container">
+                <input type="number" id="depth-limit-input" placeholder="Depth" min="1">
+                <button id="explore-btn">Explore</button>
+            </div>
+
+            <div id="separator"></div>
+            
             <h2>Starting Shapes</h2>
-            <p>Shapes you have available and want the solver to work with. You can add the same shape multiple times.</p>
+            <p>Shapes to start from. You can add the same shape multiple times.</p>
             <div id="input-button-container">
                 <input type="text" id="new-shape-input" placeholder="Shape Code">
                 <button id="add-shape-btn">+</button>
@@ -64,11 +74,12 @@
             <div id="separator"></div>
 
             <h2>Solver Options</h2>
+            <p>Options specific to the solver. This will not affect the shape explorer.</p>
 
             <div class="option-group">
                 <label for="max-states-per-level">Max States Per Level</label>
                 <input type="number" id="max-states-per-level" class="wide" value="7500">
-                <p class="option-desc">Smaller values solve faster but may be less accurate or fail. Larger values take more time but are more likely to succeed and give better results.</p>
+                <p class="option-desc">Smaller values solve faster but may be less efficient or fail. Larger values take more time but are more likely to succeed and give better results.</p>
             </div>
 
             <div class="option-group">
@@ -141,11 +152,12 @@
     <div id="extract-modal" style="display: none;">
         <div class="modal-content">
             <h2>Shape Extraction Options</h2>
+            <p>Automatically set input shapes by splitting the target shape into smaller components based on a certain property.</p>
             <div class="option-group">
                 <label>Extract by Unique:</label>
                 <div class="extraction-option"><input type="radio" name="extract-mode" value="color" checked> Color</div>
-                <div class="extraction-option"><input type="radio" name="extract-mode" value="part-color"> Color & Part</div>
-                <div class="extraction-option"><input type="radio" name="extract-mode" value="part"> Part</div>
+                <div class="extraction-option"><input type="radio" name="extract-mode" value="part-color"> Color & Part Type</div>
+                <div class="extraction-option"><input type="radio" name="extract-mode" value="part"> Part Type</div>
                 <div class="extraction-option"><input type="radio" name="extract-mode" value="layer"> Layer</div>
             </div>
             <div class="option-group">
@@ -159,9 +171,21 @@
         </div>
     </div>
 
+    <!-- cytoscape -->
     <script src="https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
+
+    <!-- hierarchical layout -->
     <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
     <script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
+
+    <!-- 2d force-based (currently unused)
+    <script src="https://unpkg.com/cytoscape-cola@2.2.3/cytoscape-cola.js"></script>
+    <script src="https://unpkg.com/webcola@3.3.8/WebCola/cola.min.js"></script>
+    
+    <!-- 3d force-based -->
+    <script src="https://cdn.jsdelivr.net/npm/three/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/3d-force-graph/dist/3d-force-graph.min.js"></script>
+
     <script type="module" src="main.js"></script>
 </body>
 

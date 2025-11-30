@@ -183,7 +183,8 @@ button:hover {
 }
 
 #new-shape-input,
-#target-shape {
+#target-shape,
+#depth-limit-input {
     flex: 1;
     margin-right: 5px;
     margin-bottom: 0;
@@ -197,11 +198,12 @@ button:hover {
 }
 
 #graph-container {
-    height: 100%;
+    height: calc(100vh - 60px);
     width: 100%;
     background-color: var(--bg-main);
     border: none;
     border-radius: 0;
+    overflow: hidden;
 }
 
 #snapshot-btn {
