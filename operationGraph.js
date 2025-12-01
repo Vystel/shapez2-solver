@@ -305,7 +305,6 @@ export function renderSpaceGraph(graph) {
         });
     }
     
-
     // Edges
     for (const e of graph.edges) {
         links.push({
