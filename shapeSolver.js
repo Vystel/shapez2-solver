@@ -338,21 +338,14 @@ async function shapeExplorer(startingShapeCodes, enabledOperations, depthLimit, 
 
     let frontier = new Set(availableIds);
 
-    function processOutputs(sourceIds, outputCodes) {
-        const filteredOutputs = outputCodes.filter(oc => 
-            !sourceIds.some(id => oc === shapesList.find(s => s.id === id).code)
-        );
-        return filteredOutputs;
-    }
-
     for (let depth = 1; depth <= depthLimit; depth++) {
         if (cancelled) {
             return null;
         }
 
         const newlyDiscovered = new Set();
-        const startIds = Array.from(availableIds);
-        const primaryIds = Array.from(frontier);
+        const startIds = Array.from(availableIds); // All shapes found so far
+        const primaryIds = Array.from(frontier); // Shapes from previous depth
 
         if (primaryIds.length === 0) break;
 
@@ -380,14 +373,15 @@ async function shapeExplorer(startingShapeCodes, enabledOperations, depthLimit, 
                         const outputs = needsColor ? fn(inputShape, color, config) : fn(inputShape, config);
                         const outputCodes = outputs.map(o => o.toShapeCode()).filter(Boolean);
 
-                        const filtered = processOutputs([id], outputCodes);
-                        if (filtered.length === 0) continue;
+                        if (outputCodes.some(oc => oc === shapesList[id].code)) {
+                            continue;
+                        }
 
                         const opId = `op-${nextOpId++}`;
                         opsList.push({ id: opId, type: opName, params: color ? { color } : {} });
                         edges.push({ source: `shape-${id}`, target: opId });
 
-                        for (const oc of filtered) {
+                        for (const oc of outputCodes) {
                             const { id: outId, added } = addShapeIfNew(oc);
                             if (outId === null) continue;
                             if (added) {
@@ -404,28 +398,47 @@ async function shapeExplorer(startingShapeCodes, enabledOperations, depthLimit, 
                 for (const id1 of startIds) {
                     if (cancelled) break;
                     
-                    for (const id2 of startIds) {
+                    const s1 = getShapeById(id1);
+                    if (s1.isEmpty()) continue;
+                    
+                    for (const id2 of primaryIds) {
                         if (cancelled) break;
-                        
-                        if (id1 === id2) continue;
-                        if (!isStacker && id1 > id2) continue;
 
-                        const s1 = getShapeById(id1);
+                        if (id1 === id2 && !isStacker) continue;
+                        if (id1 > id2 && !isStacker) continue;
+
                         const s2 = getShapeById(id2);
-                        if (s1.isEmpty() || s2.isEmpty()) continue;
+                        if (s2.isEmpty()) continue;
+
+                        // Extra check for Stacker: compare outputs for both orders
+                        if (isStacker && id1 !== id2) {
+                            const outA = fn(getShapeById(id1), getShapeById(id2), config)
+                                .map(o => o.toShapeCode()).filter(Boolean);
+                            const outB = fn(getShapeById(id2), getShapeById(id1), config)
+                                .map(o => o.toShapeCode()).filter(Boolean);
+
+                            // If same outputs, only process one ordering (id1 < id2)
+                            if (JSON.stringify(outA) === JSON.stringify(outB) && id1 > id2) {
+                                continue;
+                            }
+                        }
 
                         const outputs = fn(getShapeById(id1), getShapeById(id2), config);
                         const outputCodes = outputs.map(o => o.toShapeCode()).filter(Boolean);
 
-                        const filtered = processOutputs([id1, id2], outputCodes);
-                        if (filtered.length === 0) continue;
+                        const code1 = shapesList[id1].code;
+                        const code2 = shapesList[id2].code;
+
+                        if (outputCodes.some(oc => oc === code1 || oc === code2)) {
+                            continue;
+                        }
 
                         const opId = `op-${nextOpId++}`;
                         opsList.push({ id: opId, type: opName, params: {} });
                         edges.push({ source: `shape-${id1}`, target: opId });
                         edges.push({ source: `shape-${id2}`, target: opId });
 
-                        for (const oc of filtered) {
+                        for (const oc of outputCodes) {
                             const { id: outId, added } = addShapeIfNew(oc);
                             if (outId === null) continue;
                             if (added) {
