@@ -10,9 +10,11 @@ const VALID_SHAPES = [
     'R', // rectangle
     'S', // star
     'W', // diamond
+    'X', // refined
+    'Y', // exotic
     'H', // hexagon
     'F', // flower
-    'G' // gear
+    'G'  // gear
 ];
 
 // Valid color characters
@@ -26,6 +28,7 @@ const VALID_COLORS = [
     'c', // cyan
     'm', // magenta
     'w', // white
+    'k'  // black
 ];
 
 function validateShapeCode(shapeCode) {

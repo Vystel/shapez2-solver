@@ -5,17 +5,17 @@ const quadShapesConfig = "quad";
 const hexShapesConfig = "hex";
 
 export const baseColors = {
-    "u": "rgb(164,158,165)",
-    "r": "rgb(255,0,0)",
-    "g": "rgb(0,255,0)",
-    "b": "rgb(67,110,223)",
-    "c": "rgb(0,255,255)",
-    "m": "rgb(255,0,255)",
-    "y": "rgb(255,255,0)",
+    "u": "rgb(121,138,150)",
+    "r": "rgb(244,44,86)",
+    "g": "rgb(113,195,43)",
+    "b": "rgb(75,137,237)",
+    "c": "rgb(29,195,145)",
+    "m": "rgb(184,68,198)",
+    "y": "rgb(232,148,47)",
     "w": "rgb(255,255,255)",
-    "k": "rgb(86,77,78)",
-    "p": "rgb(167,41,207)",
-    "o": "rgb(213,133,13)",
+    "k": "rgb(65,64,59)",
+    "p": "rgb(195,53,255)",
+    "o": "rgb(254,153,0)",
 };
 export const colorValues = {
     "rgb": {
@@ -26,7 +26,8 @@ export const colorValues = {
         "c": baseColors["c"],
         "m": baseColors["m"],
         "y": baseColors["y"],
-        "w": baseColors["w"]
+        "w": baseColors["w"],
+        "k": baseColors["k"]
     },
     "ryb": {
         "u": baseColors["u"],
@@ -36,7 +37,8 @@ export const colorValues = {
         "c": baseColors["g"],
         "m": baseColors["p"],
         "y": baseColors["o"],
-        "w": baseColors["k"]
+        "w": baseColors["k"],
+        "k": baseColors["w"]
     },
     "cmyk": {
         "u": baseColors["u"],
@@ -46,14 +48,15 @@ export const colorValues = {
         "c": baseColors["r"],
         "m": baseColors["g"],
         "y": baseColors["b"],
-        "w": baseColors["k"]
+        "w": baseColors["k"],
+        "k": baseColors["w"]
     }
 };
 
-const shapeBorderColor = "rgb(35,25,35)";
+const shapeBorderColor = "rgb(48,37,47)";
 const BGCircleColor = "rgba(0,0,0,0)";
 const shadowColor = "rgba(50,50,50,0.5)";
-const pinColor = "rgb(71,69,75)";
+const pinColor = "rgb(64,67,71)";
 
 // according to 'dnSpy > ShapeMeshGenerator > GenerateShapeMesh()', this value should be 0.85
 // according to ingame screenshots, it should be 0.77
@@ -65,11 +68,9 @@ const layerSizeReduction = 0.75;
 const defaultImageSize = 602;
 const defaultBGCircleDiameter = 520;
 const defaultShapeDiameter = 407;
-const defaultBorderSize = 15;
 
 const BGCircleDiameter = defaultBGCircleDiameter / defaultImageSize;
 const shapeDiameter = defaultShapeDiameter / defaultImageSize;
-const borderSize = defaultBorderSize / defaultImageSize;
 
 const sqrt2 = Math.sqrt(2);
 const sqrt3 = Math.sqrt(3);
@@ -84,8 +85,15 @@ function darkenColor(color) {
     return `rgb(${r},${g},${b})`;
 }
 
-function radians(angle) {
-    return angle * (Math.PI / 180);
+function brightenColor(color, amount = 0.3) {
+    color = color.slice(4, -1);
+    let [r,g,b] = color.split(",").map(v => parseInt(v));
+
+    r = Math.round(r + (255 - r) * amount);
+    g = Math.round(g + (255 - g) * amount);
+    b = Math.round(b + (255 - b) * amount);
+
+    return `rgb(${r},${g},${b})`;
 }
 
 function drawPolygon(ctx, points) {
@@ -97,13 +105,13 @@ function drawPolygon(ctx, points) {
     ctx.closePath();
 }
 
-function renderPart(ctx, partShape, partColor, layerIndex, shapesConfig, colorMode, borderScale) {
+function renderPart(ctx, partShape, partColor, layerIndex, shapesConfig, colorMode, layerScale) {
 
     const drawShadow = layerIndex != 0;
     const color = colorValues[colorMode][partColor];
-    const curBorderSize = borderSize / borderScale;
+    const curBorderSize = 0.1;
 
-    function standardDraw(drawPath) {
+    function standardDraw(drawPath, borderColor = shapeBorderColor) {
         return [
             (() => {
                 drawPath();
@@ -112,7 +120,7 @@ function renderPart(ctx, partShape, partColor, layerIndex, shapesConfig, colorMo
             }),
             (() => {
                 drawPath();
-                ctx.strokeStyle = shapeBorderColor;
+                ctx.strokeStyle = borderColor;
                 ctx.lineWidth = curBorderSize;
                 ctx.lineJoin = "round";
                 ctx.stroke();
@@ -245,12 +253,30 @@ function renderPart(ctx, partShape, partColor, layerIndex, shapesConfig, colorMo
 
     if (partShape == "c") {
         const darkenedColor = darkenColor(color);
+        const brighterColor = brightenColor(color);
+ 
         if (shapesConfig == quadShapesConfig) {
-            const darkenedAreasOffset = layerIndex % 2 == 0 ? 0 : 22.5;
-            const startAngle1 = radians(360 - (67.5 - darkenedAreasOffset));
-            const stopAngle1 = radians(360 - (90 - darkenedAreasOffset));
-            const startAngle2 = radians(360 - (22.5 - darkenedAreasOffset));
-            const stopAngle2 = radians(360 - (45 - darkenedAreasOffset));
+            function drawCrystalPath() {
+                ctx.beginPath();
+                ctx.moveTo(0, 1);
+                ctx.arc(0, 1, 1, -Math.PI / 2, 0);
+                ctx.closePath();
+            }
+ 
+            // Gradient direction alternates per layer: bright corner → dark arc midpoint
+            function makeGradient() {
+                const grad = ctx.createConicGradient(-Math.PI / 2, 0, 1);
+
+                grad.addColorStop(0.00, darkenedColor);
+                grad.addColorStop(0.1, color);
+                grad.addColorStop(0.2, darkenedColor);
+                grad.addColorStop(0.3, color);
+                grad.addColorStop(0.4, darkenedColor);
+                grad.addColorStop(0.5, color);
+
+                return grad;
+            }
+ 
             return [
                 (() => {
                     if (drawShadow) {
@@ -261,23 +287,17 @@ function renderPart(ctx, partShape, partColor, layerIndex, shapesConfig, colorMo
                         ctx.fillStyle = shadowColor;
                         ctx.fill();
                     }
-                    ctx.beginPath();
-                    ctx.moveTo(0, 1);
-                    ctx.arc(0, 1, 1, -Math.PI / 2, 0);
-                    ctx.closePath();
-                    ctx.fillStyle = color;
-                    ctx.fill();
-                    ctx.beginPath();
-                    ctx.moveTo(0, 1);
-                    ctx.arc(0, 1, 1, startAngle1, stopAngle1, true);
-                    ctx.lineTo(0, 1);
-                    ctx.arc(0, 1, 1, startAngle2, stopAngle2, true);
-                    ctx.lineTo(0, 1);
-                    ctx.closePath();
-                    ctx.fillStyle = darkenedColor;
+                    drawCrystalPath();
+                    ctx.fillStyle = makeGradient();
                     ctx.fill();
                 }),
-                (() => { })
+                (() => {
+                    drawCrystalPath();
+                    ctx.strokeStyle = brighterColor;
+                    ctx.lineWidth = curBorderSize;
+                    ctx.lineJoin = "round";
+                    ctx.stroke();
+                })
             ];
         } else if (shapesConfig == hexShapesConfig) {
             const points = [
@@ -290,13 +310,21 @@ function renderPart(ctx, partShape, partColor, layerIndex, shapesConfig, colorMo
                 [points[1][0] + ((sqrt3 / 2) * (curBorderSize / 2)), points[1][1] - (curBorderSize / 4)],
                 [points[2][0], points[2][1]]
             ];
-            const sideMiddlePoint = [(points[0][0] + points[1][0]) / 2, (points[0][1] + points[1][1]) / 2];
-            let darkenedArea;
-            if (layerIndex % 2 == 0) {
-                darkenedArea = [points[0], sideMiddlePoint, points[2]];
-            } else {
-                darkenedArea = [sideMiddlePoint, points[1], points[2]];
+ 
+            function makeGradient() {
+                const grad = ctx.createLinearGradient(
+                    points[0][0], points[0][1],   // start
+                    points[1][0], points[1][1]    // toward outer corner
+                );
+
+                grad.addColorStop(0.0, darkenedColor);
+                grad.addColorStop(0.33, color);
+                grad.addColorStop(0.66, darkenedColor);
+                grad.addColorStop(1, color);
+
+                return grad;
             }
+ 
             return [
                 (() => {
                     if (drawShadow) {
@@ -305,15 +333,129 @@ function renderPart(ctx, partShape, partColor, layerIndex, shapesConfig, colorMo
                         ctx.fill();
                     }
                     drawPolygon(ctx, points);
-                    ctx.fillStyle = color;
-                    ctx.fill();
-                    drawPolygon(ctx, darkenedArea);
-                    ctx.fillStyle = darkenedColor;
+                    ctx.fillStyle = makeGradient();
                     ctx.fill();
                 }),
-                (() => { })
+                (() => {
+                    drawPolygon(ctx, points);
+                    ctx.strokeStyle = brighterColor;
+                    ctx.lineWidth = curBorderSize;
+                    ctx.lineJoin = "round";
+                    ctx.stroke();
+                })
             ];
         }
+    }
+
+    if (partShape == "X") {
+        const c = 0.4; // chamfer size for cut corners
+
+        function drawPath() {
+            ctx.beginPath();
+            ctx.moveTo(0, 1);
+            ctx.lineTo(0, c);
+            ctx.lineTo(c, 0);
+            ctx.lineTo(0.5, 0);
+            ctx.lineTo(1, 0.5);
+            ctx.lineTo(1, 1 - c);
+            ctx.lineTo(1 - c, 1);
+            ctx.closePath();
+        }
+
+        function makeGradient() {
+            const grad = ctx.createRadialGradient(
+                0.5, 0.5, 0.1,   // center (small radius)
+                0.5, 0.5, 0.9    // outer edge
+            );
+
+            grad.addColorStop(0.0, color);          // center normal
+            grad.addColorStop(1.0, brightenColor(color));  // brighter edges
+
+            return grad;
+        }
+
+        function addBlue(color, amount = 40) {
+            const m = color.match(/\d+/g).map(Number); // assumes rgb/rgba
+            m[2] = Math.min(255, m[2] + amount);       // increase blue
+            return `rgb(${m[0]}, ${m[1]}, ${m[2]})`;
+        }
+
+        return [
+            (() => {
+                if (drawShadow) {
+                    drawPath();
+                    ctx.fillStyle = shadowColor;
+                    ctx.fill();
+                }
+
+                drawPath();
+                ctx.fillStyle = makeGradient();
+                ctx.fill();
+            }),
+            (() => {
+                drawPath();
+                ctx.strokeStyle = addBlue(darkenColor(addBlue(color)), 20);
+                ctx.lineWidth = curBorderSize;
+                ctx.lineJoin = "round";
+                ctx.stroke();
+            })
+        ];
+    }
+
+    if (partShape == "Y") {
+        const c = 0.5; // chamfer size for cut corners
+
+        function drawPath() {
+            ctx.beginPath();
+            ctx.moveTo(0, 1);
+            ctx.lineTo(0, c);
+            ctx.lineTo(c, 0);
+            ctx.lineTo(0.5, 0);
+            ctx.lineTo(0.5, 0.5);
+            ctx.lineTo(1, 0.5);
+            ctx.lineTo(1, 1 - c);
+            ctx.lineTo(1 - c, 1);
+            ctx.closePath();
+        }
+
+        function makeGradient() {
+            const grad = ctx.createRadialGradient(
+                0.5, 0.5, 0.1,   // center (small radius)
+                0.5, 0.5, 0.9    // outer edge
+            );
+
+            grad.addColorStop(0.0, color);          // center normal
+            grad.addColorStop(1.0, brightenColor(color));  // brighter edges
+
+            return grad;
+        }
+
+        function addBlue(color, amount = 30) {
+            const m = color.match(/\d+/g).map(Number); // assumes rgb/rgba
+            m[2] = Math.min(255, m[2] + amount);       // increase blue
+            return `rgb(${m[0]}, ${m[1]}, ${m[2]})`;
+        }
+
+        return [
+            (() => {
+                if (drawShadow) {
+                    drawPath();
+                    ctx.fillStyle = shadowColor;
+                    ctx.fill();
+                }
+
+                drawPath();
+                ctx.fillStyle = makeGradient();
+                ctx.fill();
+            }),
+            (() => {
+                drawPath();
+                ctx.strokeStyle = addBlue(darkenColor(addBlue(color)), 20);
+                ctx.lineWidth = curBorderSize;
+                ctx.lineJoin = "round";
+                ctx.stroke();
+            })
+        ];
     }
 
     throw new Error("Invalid shape");
@@ -369,7 +511,21 @@ export function renderShape(context, size, shapeCode, shapesConfig, colorMode) {
         context.translate(1, 0);
         const partBorders = [];
 
-        for (let partIndex = 0; partIndex < numParts; partIndex++) {
+        // Build ordered index list so some shapes render earlier/later
+        const orderedIndices = [...Array(numParts).keys()].sort((a, b) => {
+            const shapeA = layer[a][0];
+            const shapeB = layer[b][0];
+
+            const priority = (s) => {
+                if (s === "X") return 2;   // render last
+                if (s === "c" || s === "Y") return 0; // render first
+                return 1; // normal
+            };
+
+            return priority(shapeA) - priority(shapeB);
+        });
+
+        for (const partIndex of orderedIndices) {
             const [partShape, partColor] = layer[partIndex];
 
             context.save();
@@ -381,13 +537,13 @@ export function renderShape(context, size, shapeCode, shapesConfig, colorMode) {
                 layerIndex,
                 shapesConfig,
                 colorMode,
-                shapeDiameter * curLayerScale * 0.5
+                curLayerScale
             );
+
             shapeRenderer();
-            partBorders.push(borderRenderer);
+            partBorders[partIndex] = borderRenderer;
 
             context.restore();
-
         }
 
         for (let partIndex = 0; partIndex < partBorders.length; partIndex++) {

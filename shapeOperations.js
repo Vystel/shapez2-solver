@@ -5,7 +5,7 @@ export const NOTHING_CHAR = "-";
 export const SHAPE_LAYER_SEPARATOR = ":";
 export const PIN_CHAR = "P";
 export const CRYSTAL_CHAR = "c";
-export const UNPAINTABLE_SHAPES = [CRYSTAL_CHAR, PIN_CHAR, NOTHING_CHAR];
+export const UNPAINTABLE_SHAPES = [CRYSTAL_CHAR, PIN_CHAR, NOTHING_CHAR, 'X', 'Y'];
 export const REPLACED_BY_CRYSTAL = [PIN_CHAR, NOTHING_CHAR];
 
 // Shape Classes

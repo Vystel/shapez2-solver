@@ -56,7 +56,7 @@ export function renderGraph(solutionPath) {
         inputs.forEach(input => {
             const nodeId = `shape-${input.id}`;
             if (!nodeMap[nodeId]) {
-                const shapeCanvas = createShapeCanvas(input.shape, 120);
+                const shapeCanvas = createShapeCanvas(input.shape, 240);
                 elements.push({
                     data: {
                         id: nodeId,
@@ -74,7 +74,7 @@ export function renderGraph(solutionPath) {
         outputs.forEach(output => {
             const nodeId = `shape-${output.id}`;
             if (!nodeMap[nodeId]) {
-                const shapeCanvas = createShapeCanvas((output.shape), 120);
+                const shapeCanvas = createShapeCanvas((output.shape), 240);
                 elements.push({
                     data: {
                         id: nodeId,
@@ -279,7 +279,7 @@ export function renderSpaceGraph(graph) {
     // Shape nodes
     for (const s of graph.shapes) {
         const nodeId = s.id;
-        const canvas = createShapeCanvas(s.code, 120);
+        const canvas = createShapeCanvas(s.code, 240);
 
         const node = {
             id: nodeId,
