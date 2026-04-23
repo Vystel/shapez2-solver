@@ -1,303 +1,605 @@
-// Imports
-import { createShapeCanvas, createShapeElement, colorValues } from './shapeRendering.js';
+import { createShapeCanvas, createShapeElement } from './shapeRendering.js';
 import { Shape, _extractLayers } from './shapeOperations.js';
-import { cyInstance, copyGraphToClipboard, applyGraphLayout, renderGraph, renderSpaceGraph } from './operationGraph.js';
+import { getCyInstance, copyGraphToClipboard, applyGraphLayout, renderGraph, renderSpaceGraph, renderMixGraph } from './operationGraph.js';
 import { showValidationErrors } from './shapeValidation.js';
+import { readColorCounts } from './mixingSolver.js';
+import { getCurrentColorMode, getMixColor } from './colorMode.js';
+import { COLOR_MODES, NON_RENEWABLE_PARTS } from './shapeConstants.js';
 
-// Utility Helpers
-const $ = (sel) => document.querySelector(sel);
-const $all = (sel) => Array.from(document.querySelectorAll(sel));
-const byId = (id) => document.getElementById(id);
+// constants
+const SOLVER_LABELS   = { start: '▶ Solve',   cancel: '⏹ Cancel' };
+const EXPLORER_LABELS = { start: '▶ Explore', cancel: '⏹ Cancel' };
+const MIX_LABELS      = { start: '▶ Solve',   cancel: '⏹ Cancel' };
 
-export function getCurrentColorMode() {
-    return byId('color-mode-select')?.value || 'rgb';
+// main state
+const state = {
+    targetShapeCodes:        [],
+    startingShapeCodes:      ['CuCuCuCu', 'RuRuRuRu', 'SuSuSuSu', 'WuWuWuWu'],
+    solverWorker:            null,
+    explorerWorker:          null,
+    mixWorker:               null,
+    mixSolutions:            [],
+    mixFallbackHaveCounts:   null,
+    selectedMixSolutionIndex: 0,
+};
+
+// DOM utils
+const byId  = (id)               => document.getElementById(id);
+const qs    = (sel, root = document) => root?.querySelector(sel)     ?? null;
+const qsa   = (sel, root = document) => Array.from(root?.querySelectorAll(sel) ?? []);
+const readInt = (id, fallback)   => Number.parseInt(byId(id)?.value, 10) || fallback;
+
+// status bar
+function setStatus(text, status = 'idle') {
+    const dot   = byId('status-dot');
+    const label = byId('status-text');
+    if (label) label.textContent = text;
+    if (dot)   dot.className = `status-dot ${status}`;
 }
 
-// Refresh Colors
-function refreshShapeColors() {
-    const container = byId('graph-container');
-    if (!container || !cyInstance) return;
+// shape lists
+function renderShapeList(containerId, shapeCodes, onRemove) {
+    const container = byId(containerId);
+    if (!container) return;
 
-    const mode = getCurrentColorMode();
+    container.innerHTML = '';
 
-    // Update shape nodes
-    cyInstance.nodes('.shape').forEach((node) => {
-        const code = node.data('label');
-        const canvas = createShapeCanvas(code, 120);
-        node.data('shapeCanvas', canvas.toDataURL());
-        node.trigger('style');
-    });
-
-    // Update color operations
-    cyInstance.nodes('.colored-op').forEach((node) => {
-        const parts = node.data('label').split(' ');
-        if (parts.length < 2) return;
-        const color = parts[1].replace(/[()]/g, '');
-        const col = colorValues[mode]?.[color];
-        if (col) node.style({ 'background-color': col });
-    });
-
-    // Refresh inline canvases
-    $all('.shape-canvas').forEach((canvas) => {
-        const code = canvas.dataset.shapeCode;
-        if (!code) return;
-        const newCanvas = createShapeCanvas(code, 40);
-        newCanvas.className = 'shape-canvas';
-        newCanvas.dataset.shapeCode = code;
-        canvas.replaceWith(newCanvas);
-    });
-}
-
-// Default Shapes
-function initializeDefaultShapes() {
-    const container = byId('starting-shapes');
-    ['CuCuCuCu', 'RuRuRuRu', 'SuSuSuSu', 'WuWuWuWu']
-        .forEach((code) => container.appendChild(createShapeItem(code)));
-}
-
-function createShapeItem(shapeCode) {
-    const item = document.createElement('div');
-    item.className = 'shape-item';
-
-    const display = createShapeElement(shapeCode);
-
-    const removeBtn = document.createElement('span');
-    removeBtn.className = 'remove-shape';
-    removeBtn.textContent = '×';
-    removeBtn.dataset.shape = shapeCode;
-
-    item.appendChild(display);
-    item.appendChild(removeBtn);
-
-    return item;
-}
-
-// Add Shape Button
-byId('add-shape-btn').addEventListener('click', () => {
-    const input = byId('new-shape-input');
-    const code = input.value.trim();
-    if (!code) return alert('Please enter a shape code.');
-    if (!showValidationErrors(code, 'starting shape')) return;
-
-    byId('starting-shapes').appendChild(createShapeItem(code));
-    input.value = '';
-});
-
-// Remove Shape Button
-byId('starting-shapes').addEventListener('click', (e) => {
-    if (e.target.classList.contains('remove-shape')) {
-        e.target.parentElement.remove();
-    }
-});
-
-// Extract Shapes Modal
-byId('extract-shapes-btn').addEventListener('click', () => {
-    byId('extract-modal').style.display = 'flex';
-});
-
-byId('extract-cancel').addEventListener('click', () => {
-    byId('extract-modal').style.display = 'none';
-});
-
-byId('extract-confirm').addEventListener('click', () => {
-    const target = byId('target-shape').value.trim();
-    const mode = $('input[name="extract-mode"]:checked').value;
-    const includePins = byId('include-pins').checked;
-    const includeColor = byId('include-color').checked;
-
-    const modal = byId('extract-modal');
-
-    if (!target) {
-        alert('Please enter a target shape code.');
-        modal.style.display = 'none';
-        return;
-    }
-    if (!showValidationErrors(target, 'target shape')) {
-        modal.style.display = 'none';
+    if (shapeCodes.length === 0) {
+        const empty = document.createElement('span');
+        empty.className = 'shape-empty';
+        empty.textContent = 'None added yet.';
+        container.appendChild(empty);
         return;
     }
 
-    try {
-        const container = byId('starting-shapes');
-        container.innerHTML = '';
+    for (const [index, code] of shapeCodes.entries()) {
+        const item      = document.createElement('div');
+        item.className  = 'shape-item';
+        item.dataset.shapeCode = code;
 
-        const variants = _extractLayers(
-            Shape.fromShapeCode(target),
-            mode,
-            includePins,
-            includeColor
-        );
+        const label     = document.createElement('span');
+        label.className = 'shape-code';
+        label.textContent = code;
 
-        variants.forEach((code) => container.appendChild(createShapeItem(code)));
-        modal.style.display = 'none';
-    } catch (err) {
-        alert(`Failed to extract shapes: ${err.message}`);
-        modal.style.display = 'none';
+        const removeBtn     = document.createElement('button');
+        removeBtn.className = 'shape-remove';
+        removeBtn.title     = 'Remove';
+        removeBtn.textContent = '×';
+        removeBtn.addEventListener('click', () => onRemove(index));
+
+        item.append(createShapeElement(code), label, removeBtn);
+        container.appendChild(item);
     }
-});
+}
 
-// Tabs
-$all('.tab-button').forEach((btn) => {
-    btn.addEventListener('click', () => {
-        $all('.tab-button').forEach((b) => b.classList.remove('active'));
-        $all('.tab-content').forEach((c) => c.classList.remove('active'));
-
-        btn.classList.add('active');
-        byId(btn.id.replace('-tab-btn', '-content')).classList.add('active');
+const refreshTargetList = () =>
+    renderShapeList('target-shapes', state.targetShapeCodes, (i) => {
+        state.targetShapeCodes.splice(i, 1);
+        refreshTargetList();
     });
-});
 
-// Operation Toggle
-$all('.operation-item').forEach((item) => {
-    item.addEventListener('click', () => item.classList.toggle('enabled'));
-});
+const refreshStartingList = () =>
+    renderShapeList('starting-shapes', state.startingShapeCodes, (i) => {
+        state.startingShapeCodes.splice(i, 1);
+        refreshStartingList();
+    });
 
-// Solver Worker
-let solverWorker = null;
-byId('solve-btn').addEventListener('click', () => {
-    const btn = byId('solve-btn');
-    const status = byId('status');
+function addShapeFromInput(listType) {
+    const isTarget = listType === 'target';
+    const input    = byId(isTarget ? 'target-input' : 'starting-input');
+    const code     = input?.value.trim() ?? '';
 
-    const solving = btn.textContent === 'Solve';
-    if (!solving) {
-        if (solverWorker) {
-            solverWorker.postMessage({ action: 'cancel' });
-            solverWorker.terminate();
-            solverWorker = null;
-        }
-        btn.textContent = 'Solve';
-        status.textContent = 'Cancelled.';
-        return;
+    if (!code || !showValidationErrors(code, `${listType} shape`)) return;
+
+    if (isTarget) {
+        state.targetShapeCodes.push(code);
+        refreshTargetList();
+    } else {
+        state.startingShapeCodes.push(code);
+        refreshStartingList();
     }
 
-    // Gather inputs
-    const target = byId('target-shape').value.trim();
-    const starting = $all('#starting-shapes .shape-item .shape-label').map((x) => x.textContent);
-    const ops = $all('#enabled-operations .operation-item.enabled').map((x) => x.dataset.operation);
+    if (input) { input.value = ''; input.focus(); }
+}
 
-    const maxLayers = parseInt(byId('max-layers').value) || 4;
-    const maxStates = parseInt(byId('max-states-per-level').value) || 1000;
-    const preventWaste = byId('prevent-waste').checked;
-    const orientationSensitive = byId('orientation-sensitive').checked;
-    const monolayerPainting = byId('monolayer-painting').checked;
+// worker utils
+function createSolverWorker() {
+    return new Worker(new URL('./shapeSolver.js', import.meta.url), { type: 'module' });
+}
 
-    if (!showValidationErrors(target, 'target shape')) return;
-    for (const code of starting) {
-        if (!showValidationErrors(code, 'starting shape')) return;
+function createMixWorker() {
+    return new Worker(new URL('./mixingSolver.js', import.meta.url), { type: 'module' });
+}
+
+function stopWorker(worker) {
+    if (!worker) return null;
+    worker.postMessage({ action: 'cancel' });
+    worker.terminate();
+    return null;
+}
+
+function runWorker({ button, labels, message, workerFactory = createSolverWorker, payload, onResult, onError }) {
+    const isStart = button.textContent.trim() === labels.start;
+
+    if (!isStart) {
+        return 'cancel';
     }
 
-    // Start worker
-    if (solverWorker) solverWorker.terminate();
-    solverWorker = new Worker(new URL('./shapeSolver.js', import.meta.url), { type: 'module' });
-
+    const worker    = workerFactory();
     const startTime = performance.now();
 
-    solverWorker.onmessage = ({ data }) => {
-        const { type, message, result } = data;
+    button.textContent = labels.cancel;
+    setStatus(message, 'running');
 
-        if (type === 'status') {
-            status.textContent = message;
+    worker.onmessage = ({ data: { type, message: msg, result } }) => {
+        if (type === 'status') { setStatus(msg, 'running'); return; }
+        if (type !== 'result') return;
+        button.textContent = labels.start;
+        onResult(result, startTime);
+        worker.terminate();
+    };
+
+    worker.onerror = ({ message: msg }) => {
+        setStatus(`Worker error: ${msg}`, 'error');
+        button.textContent = labels.start;
+        if (onError) onError();
+        worker.terminate();
+    };
+
+    worker.postMessage(payload);
+    return worker;
+}
+
+// solver & explorer panels
+function collectStartingCodes() {
+    return qsa('#starting-shapes .shape-item[data-shape-code]')
+        .map((el) => el.dataset.shapeCode)
+        .filter(Boolean);
+}
+
+function collectEnabledOperations() {
+    return qsa('#enabled-operations .operation-item.enabled')
+        .map((el) => el.dataset.operation)
+        .filter(Boolean);
+}
+
+function readSolverOptions() {
+    return {
+        maxLayers:          readInt('max-layers', 4),
+        maxStatesPerLevel:  readInt('max-states-per-level', 7500),
+        preventWaste:       byId('prevent-waste')?.checked           ?? false,
+        orientationSensitive: byId('orientation-sensitive')?.checked ?? false,
+        allowSplitting:     byId('allow-splitting')?.checked         ?? false,
+        cleanPainting:      byId('clean-painting')?.checked          ?? false,
+    };
+}
+
+function validateSolveInputs(startingCodes) {
+    if (!state.targetShapeCodes.length) {
+        alert('Add at least one output shape.');
+        return false;
+    }
+    for (const code of [...state.targetShapeCodes, ...startingCodes]) {
+        if (!showValidationErrors(code, 'shape')) return false;
+    }
+
+    const nonRenewableSet = new Set(NON_RENEWABLE_PARTS);
+    const countPartsByType = (shapeCodes) => {
+        const counts = new Map();
+
+        for (const code of shapeCodes) {
+            for (const layer of code.split(':')) {
+                for (let i = 0; i < layer.length; i += 2) {
+                    const part = layer[i];
+                    if (!nonRenewableSet.has(part)) continue;
+                    counts.set(part, (counts.get(part) ?? 0) + 1);
+                }
+            }
+        }
+
+        return counts;
+    };
+
+    const inputPartCounts = countPartsByType(startingCodes);
+    const outputPartCounts = countPartsByType(state.targetShapeCodes);
+    const shortages = [];
+
+    for (const part of NON_RENEWABLE_PARTS) {
+        const inputCount = inputPartCounts.get(part) ?? 0;
+        const outputCount = outputPartCounts.get(part) ?? 0;
+        if (inputCount < outputCount) {
+            shortages.push(`${part}: need ${outputCount}, have ${inputCount}`);
+        }
+    }
+
+    if (shortages.length) {
+        alert(
+            `Impossible solution: not enough non-renewable parts in inputs to satisfy outputs.\n\n` +
+            `Shortages:\n${shortages.join('\n')}`
+        );
+        return false;
+    }
+
+    return true;
+}
+
+function setupSolverPanel() {
+    const btn = qs('#panel-solver .btn-primary');
+    if (!btn) return;
+
+    btn.addEventListener('click', () => {
+        if (state.solverWorker) {
+            state.solverWorker = stopWorker(state.solverWorker);
+            btn.textContent = SOLVER_LABELS.start;
+            setStatus('Cancelled.', 'idle');
             return;
         }
 
-        if (type === 'result') {
-            if (result?.solutionPath) {
-                renderGraph(result.solutionPath);
-                const t = ((performance.now() - startTime) / 1000).toFixed(2);
-                status.textContent = `Solved in ${t}s at Depth ${result.depth} → ${result.statesExplored} States`;
-            } else {
-                status.textContent = 'No solution found.';
-            }
+        const startingCodes = collectStartingCodes();
+        if (!validateSolveInputs(startingCodes)) return;
 
-            btn.textContent = 'Solve';
-            solverWorker.terminate();
-            solverWorker = null;
-        }
-    };
-
-    btn.textContent = 'Cancel';
-    solverWorker.postMessage({
-        action: 'solve',
-        data: {
-            targetShapeCode: target,
-            startingShapeCodes: starting,
-            enabledOperations: ops,
-            maxLayers,
-            maxStatesPerLevel: maxStates,
-            preventWaste,
-            orientationSensitive,
-            monolayerPainting
-        }
+        state.solverWorker = runWorker({
+            button:  btn,
+            labels:  SOLVER_LABELS,
+            message: 'Solving…',
+            payload: {
+                action: 'solve',
+                data: {
+                    targetShapeCodes:  [...state.targetShapeCodes],
+                    startingShapeCodes: startingCodes,
+                    enabledOperations:  collectEnabledOperations(),
+                    ...readSolverOptions(),
+                },
+            },
+            onResult(result, startTime) {
+                state.solverWorker = null;
+                if (result?.solutionPath) {
+                    renderGraph(result.solutionPath);
+                    byId('placeholder')?.style.setProperty('display', 'none');
+                    const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
+                    setStatus(`Solved in ${elapsed}s · depth ${result.depth} · ${result.statesExplored} states`, 'done');
+                } else {
+                    setStatus('No solution found.', 'error');
+                }
+            },
+            onError() { state.solverWorker = null; },
+        });
     });
-});
+}
 
-// Space Explorer
-let spaceWorker = null;
-byId('explore-btn').addEventListener('click', () => {
-    const btn = byId('explore-btn');
-    const status = byId('status');
-    const exploring = btn.textContent === 'Explore';
+function setupExplorerPanel() {
+    const btn = qs('#panel-explorer .btn-primary');
+    if (!btn) return;
 
-    if (!exploring) {
-        if (spaceWorker) {
-            spaceWorker.postMessage({ action: 'cancel' });
-            spaceWorker.terminate();
-            spaceWorker = null;
+    btn.addEventListener('click', () => {
+        if (state.explorerWorker) {
+            state.explorerWorker = stopWorker(state.explorerWorker);
+            btn.textContent = EXPLORER_LABELS.start;
+            setStatus('Cancelled.', 'idle');
+            return;
         }
-        btn.textContent = 'Explore';
-        status.textContent = 'Cancelled.';
+
+        const startingCodes = collectStartingCodes();
+        for (const code of startingCodes) {
+            if (!showValidationErrors(code, 'starting shape')) return;
+        }
+
+        state.explorerWorker = runWorker({
+            button:  btn,
+            labels:  EXPLORER_LABELS,
+            message: 'Exploring…',
+            payload: {
+                action: 'explore',
+                data: {
+                    startingShapeCodes: startingCodes,
+                    enabledOperations:  collectEnabledOperations(),
+                    depthLimit:         readInt('depth-limit-input', 999),
+                    maxLayers:          readInt('max-layers', 4),
+                },
+            },
+            onResult(result) {
+                state.explorerWorker = null;
+                if (result) {
+                    renderSpaceGraph(result);
+                    byId('placeholder')?.style.setProperty('display', 'none');
+                    setStatus('Exploration complete.', 'done');
+                } else {
+                    setStatus('No shapes reachable.', 'idle');
+                }
+            },
+            onError() { state.explorerWorker = null; },
+        });
+    });
+}
+
+// shape extraction modal
+function setupExtractModal() {
+    const modal   = byId('extract-modal');
+    const close   = () => { if (modal) modal.style.display = 'none'; };
+
+    byId('extract-shapes-btn')?.addEventListener('click', () => {
+        if (!state.targetShapeCodes.length) { alert('Add at least one output shape first.'); return; }
+        if (modal) modal.style.display = 'flex';
+    });
+
+    byId('extract-cancel')?.addEventListener('click', close);
+    modal?.addEventListener('click', (e) => { if (e.target === modal) close(); });
+
+    byId('extract-confirm')?.addEventListener('click', () => {
+        close();
+        if (!state.targetShapeCodes.length) { alert('No output shapes to extract from.'); return; }
+
+        const mode         = qs('input[name="extract-mode"]:checked')?.value ?? 'color';
+        const includePins  = byId('include-pins')?.checked  ?? false;
+        const includeColor = byId('include-color')?.checked ?? false;
+        const extracted    = [];
+
+        for (const code of state.targetShapeCodes) {
+            if (!showValidationErrors(code, 'target shape')) return;
+            try {
+                _extractLayers(Shape.fromShapeCode(code), mode, includePins, includeColor)
+                    .forEach((c) => extracted.push(c));
+            } catch (err) {
+                alert(`Failed to extract shapes from "${code}": ${err.message}`);
+                return;
+            }
+        }
+
+        state.startingShapeCodes.length = 0;
+        state.startingShapeCodes.push(...extracted);
+        refreshStartingList();
+    });
+}
+
+// mixing panel
+function renderSelectedMixSolution() {
+    if (!state.mixSolutions.length) return;
+
+    const idx   = Math.max(0, Math.min(state.selectedMixSolutionIndex, state.mixSolutions.length - 1));
+    const steps = state.mixSolutions[idx];
+    const have  = steps.have ?? state.mixFallbackHaveCounts;
+
+    renderMixGraph(steps, have, { compactMixGraph: byId('mix-compact-graph')?.checked ?? true });
+    byId('placeholder')?.style.setProperty('display', 'none');
+}
+
+function renderMixSolutionsList(solutions, fallbackHave) {
+    const container = byId('mix-solutions');
+    if (!container) return;
+
+    state.mixSolutions            = solutions ?? [];
+    state.mixFallbackHaveCounts   = fallbackHave ?? null;
+    state.selectedMixSolutionIndex = 0;
+    container.innerHTML = '';
+
+    if (!solutions?.length) {
+        const empty = document.createElement('div');
+        empty.className   = 'mix-solutions-empty';
+        empty.textContent = 'No solutions found.';
+        container.appendChild(empty);
         return;
     }
 
-    const starting = $all('#starting-shapes .shape-item .shape-label').map((x) => x.textContent);
-    const ops = $all('#enabled-operations .operation-item.enabled').map((x) => x.dataset.operation);
-    const depthLimit = parseInt(byId('depth-limit-input').value) || 999;
-    const maxLayers = parseInt(byId('max-layers').value) || 4;
+    const header       = document.createElement('div');
+    header.className   = 'subsection-label';
+    header.innerHTML   = `Solutions<span class="mix-solutions-count">${solutions.length}</span>`;
+    container.appendChild(header);
 
-    for (const code of starting) {
-        if (!showValidationErrors(code, 'starting shape')) return;
-    }
+    const list       = document.createElement('div');
+    list.className   = 'mix-solutions-list scroll-thin';
+    container.appendChild(list);
 
-    if (spaceWorker) spaceWorker.terminate();
-    spaceWorker = new Worker(new URL('./shapeSolver.js', import.meta.url), { type: 'module' });
+    const showUsage  = !(byId('mix-manual-inputs')?.checked ?? false);
+    const usageKeys  = [
+        { key: 'R', cls: 'is-red'   },
+        { key: 'G', cls: 'is-green' },
+        { key: 'B', cls: 'is-blue'  },
+    ];
 
-    spaceWorker.onmessage = ({ data }) => {
-        const { type, message, result } = data;
+    solutions.forEach((steps, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'mix-solution-item';
 
-        if (type === 'status') {
-            status.textContent = message;
+        const idxLabel   = Object.assign(document.createElement('span'), { className: 'mix-sol-idx',   textContent: `#${i + 1}` });
+        const stepLabel  = Object.assign(document.createElement('span'), { className: 'mix-sol-steps', textContent: `${steps.length} step${steps.length !== 1 ? 's' : ''}` });
+        btn.append(idxLabel, stepLabel);
+
+        if (showUsage) {
+            const have = steps.have ?? fallbackHave;
+            const wrap = document.createElement('span');
+            wrap.className = 'mix-sol-usage';
+
+            usageKeys.forEach(({ key, cls }) => {
+                const item   = Object.assign(document.createElement('span'), { className: `mix-sol-usage-item ${cls}` });
+                const swatch = Object.assign(document.createElement('span'), { className: `mix-sol-usage-swatch ${cls}` });
+                const amount = Object.assign(document.createElement('span'), { className: `mix-sol-usage-amount ${cls}`, textContent: String(have?.[key] ?? 0) });
+                item.append(swatch, amount);
+                wrap.appendChild(item);
+            });
+
+            btn.appendChild(wrap);
+        }
+
+        btn.addEventListener('click', () => {
+            state.selectedMixSolutionIndex = i;
+            renderSelectedMixSolution();
+        });
+
+        list.appendChild(btn);
+    });
+
+    renderSelectedMixSolution();
+}
+
+function setMixManualMode(enabled) {
+    qsa('.mix-input.mix-have').forEach((el) => { el.style.display = enabled ? '' : 'none'; });
+    const headers = qs('.mix-col-headers');
+    if (headers) headers.style.display = enabled ? '' : 'none';
+    qsa('.mix-color-row, .mix-col-headers').forEach((el) => {
+        el.style.gridTemplateColumns = enabled ? '1fr 56px 56px' : '1fr 56px';
+    });
+}
+
+function setupMixingPanel() {
+    byId('reset-mix-btn')?.addEventListener('click', () => {
+        qsa('.mix-input').forEach((el) => { el.value = 0; });
+        const c = byId('mix-solutions');
+        if (c) c.innerHTML = '';
+    });
+
+    byId('mix-manual-inputs')?.addEventListener('change', (e) => setMixManualMode(e.target.checked));
+    byId('mix-compact-graph')?.addEventListener('change', renderSelectedMixSolution);
+
+    const btn = byId('solve-mix');
+    btn?.addEventListener('click', () => {
+        if (state.mixWorker) {
+            state.mixWorker = stopWorker(state.mixWorker);
+            btn.textContent = MIX_LABELS.start;
+            setStatus('Cancelled.', 'idle');
             return;
         }
 
-        if (type === 'result') {
-            btn.textContent = 'Explore';
-            
-            if (result) {
-                renderSpaceGraph(result);
-            }
+        const isManual = byId('mix-manual-inputs')?.checked ?? false;
+        const have     = isManual ? readColorCounts('mix-have') : null;
+        const want     = readColorCounts('mix-want');
 
-            spaceWorker.terminate();
-            spaceWorker = null;
-        }
-    };
-
-    btn.textContent = 'Cancel';
-    status.textContent = 'Exploring...';
-
-    spaceWorker.postMessage({
-        action: 'explore',
-        data: { startingShapeCodes: starting, enabledOperations: ops, depthLimit, maxLayers }
+        state.mixWorker = runWorker({
+            button:  btn,
+            labels:  MIX_LABELS,
+            message: isManual ? 'Solving mix…' : 'Optimizing mix…',
+            workerFactory: createMixWorker,
+            payload: { action: 'solve', data: { have, want, manualInputs: isManual } },
+            onResult(result) {
+                state.mixWorker = null;
+                if (result) {
+                    renderMixSolutionsList(result.solutions, result.have);
+                } else {
+                    setStatus('No solution found.', 'error');
+                }
+            },
+            onError() { state.mixWorker = null; },
+        });
     });
-});
 
-// Initialization
-document.addEventListener('DOMContentLoaded', () => {
-    initializeDefaultShapes();
+    setMixManualMode(false);
+}
+
+// color mode
+function refreshShapeColors() {
+    const cy        = getCyInstance();
+    const colorMode = getCurrentColorMode();
+
+    if (cy) {
+        cy.nodes('.shape').forEach((node) => {
+            try {
+                node.data('shapeCanvas', createShapeCanvas(node.data('label'), 120).toDataURL());
+                node.trigger('style');
+            } catch { /* best-effort */ }
+        });
+
+        cy.nodes('.colored-op').forEach((node) => {
+            const token = node.data('label').split(' ').at(-1)?.replace(/[()]/g, '');
+            const color = token ? COLOR_MODES?.[colorMode]?.[token] : null;
+            if (color) node.style({ 'background-color': color });
+        });
+
+        cy.nodes('[colorKey]').forEach((node) => {
+            node.style('background-color', getMixColor(node.data('colorKey')));
+        });
+
+        cy.edges('[edgeColorKey]').forEach((edge) => {
+            edge.style('line-color', getMixColor(edge.data('edgeColorKey')));
+        });
+    }
+
+    qsa('.shape-canvas').forEach((canvas) => {
+        const code = canvas.dataset.shapeCode;
+        if (!code) return;
+        try {
+            const fresh = createShapeCanvas(code, 40);
+            Object.assign(fresh, { className: 'shape-canvas' });
+            fresh.dataset.shapeCode = code;
+            canvas.replaceWith(fresh);
+        } catch { /* best-effort */ }
+    });
+}
+
+// sidebar
+function setSidebarCollapsed(collapsed) {
+    const sidebar = qs('.sidebar');
+    if (!sidebar) return;
+
+    sidebar.classList.toggle('collapsed', collapsed);
+
+    const polyline = byId('sidebar-toggle')?.querySelector('svg polyline');
+    polyline?.setAttribute('points', collapsed ? '9 18 15 12 9 6' : '15 18 9 12 15 6');
+
+    const floatBtn = byId('sidebar-toggle-float');
+    if (floatBtn) floatBtn.style.display = collapsed ? 'flex' : 'none';
+}
+
+function setupSidebar() {
+    byId('sidebar-toggle')?.addEventListener('click',       () => setSidebarCollapsed(true));
+    byId('sidebar-toggle-float')?.addEventListener('click', () => setSidebarCollapsed(false));
+}
+
+// tabs & collapsible sections
+function setupTabGroup(tabSelector, panelSelector) {
+    qsa(tabSelector).forEach((tab) => {
+        tab.addEventListener('click', () => {
+            const name = tab.dataset.panel ?? tab.dataset.mode;
+            if (!name) return;
+            qsa(tabSelector).forEach((t)  => t.classList.remove('active'));
+            qsa(panelSelector).forEach((p) => p.classList.remove('active'));
+            tab.classList.add('active');
+            byId(`panel-${name}`)?.classList.add('active');
+        });
+    });
+}
+
+function setupCollapsibleSections() {
+    qsa('.section-header').forEach((header) => {
+        header.addEventListener('click', () => {
+            const body   = header.nextElementSibling;
+            const isOpen = body?.classList.toggle('open');
+            header.classList.toggle('open', isOpen);
+        });
+    });
+}
+
+// init
+function initializeUi() {
+    refreshTargetList();
+    refreshStartingList();
+    setStatus('Idle', 'idle');
+
+    // shape input fields
+    byId('add-target-shape-btn')?.addEventListener('click',  () => addShapeFromInput('target'));
+    byId('add-starting-shape-btn')?.addEventListener('click', () => addShapeFromInput('starting'));
+    byId('target-input')?.addEventListener('keydown',   (e) => { if (e.key === 'Enter') addShapeFromInput('target'); });
+    byId('starting-input')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') addShapeFromInput('starting'); });
+
+    // layout & navigation
+    setupSidebar();
+    setupCollapsibleSections();
+    setupTabGroup('.sidebar-tab', '.sidebar-panel');
+    setupTabGroup('.mode-tab',    '.mode-panel');
+
+    // operations toggle buttons
+    qsa('.operation-item').forEach((item) => {
+        item.addEventListener('click', () => item.classList.toggle('enabled'));
+    });
+
+    // panels
+    setupExtractModal();
+    setupSolverPanel();
+    setupExplorerPanel();
+    setupMixingPanel();
+
+    // graph controls
+    byId('direction-select')?.addEventListener('change',  (e) => applyGraphLayout(e.target.value));
     byId('color-mode-select')?.addEventListener('change', refreshShapeColors);
-});
+    qs('.snapshot-btn')?.addEventListener('click', copyGraphToClipboard);
+}
 
-// Graph Controls
-byId('snapshot-btn').addEventListener('click', copyGraphToClipboard);
-byId('direction-select').addEventListener('change', (e) => {
-    applyGraphLayout(e.target.value);
-});
+document.addEventListener('DOMContentLoaded', initializeUi);

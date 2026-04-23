@@ -1,14 +1,20 @@
 // JS port of a file in Loupau38's Shapez 2 Library https://pypi.org/project/shapez2/ 
+import { PART_CODES, SHAPE_LAYER_SEPARATOR, UNCOLORED_CODE, UNPAINTABLE_PARTS, REPLACED_BY_CRYSTAL } from './shapeConstants.js';
 
-// Constants
-export const NOTHING_CHAR = "-";
-export const SHAPE_LAYER_SEPARATOR = ":";
-export const PIN_CHAR = "P";
-export const CRYSTAL_CHAR = "c";
-export const UNPAINTABLE_SHAPES = [CRYSTAL_CHAR, PIN_CHAR, NOTHING_CHAR, 'X', 'Y'];
-export const REPLACED_BY_CRYSTAL = [PIN_CHAR, NOTHING_CHAR];
+function deepCopyLayers(layers) {
+    const result = new Array(layers.length);
+    for (let i = 0; i < layers.length; i++) {
+        const src = layers[i];
+        const dst = new Array(src.length);
+        for (let j = 0; j < src.length; j++) {
+            dst[j] = new ShapePart(src[j].shape, src[j].color);
+        }
+        result[i] = dst;
+    }
+    return result;
+}
 
-// Shape Classes
+// shape classes
 export class ShapePart {
     constructor(shape, color) {
         this.shape = shape;
@@ -21,6 +27,8 @@ export class Shape {
         this.layers = layers;
         this.numLayers = layers.length;
         this.numParts = layers[0].length;
+        this._code = null;
+        this._empty = null;
     }
 
     static fromListOfLayers(layers) {
@@ -50,11 +58,17 @@ export class Shape {
     }
 
     toShapeCode() {
-        return this.toListOfLayers().join(SHAPE_LAYER_SEPARATOR);
+        if (this._code !== null) return this._code;
+        this._code = this.toListOfLayers().join(SHAPE_LAYER_SEPARATOR);
+        return this._code;
     }
 
     isEmpty() {
-        return this.toListOfLayers().join('').split('').every(c => c === NOTHING_CHAR);
+        if (this._empty !== null) return this._empty;
+        this._empty = this.layers.every(
+            layer => layer.every(p => p.shape === PART_CODES.NOTHING)
+        );
+        return this._empty;
     }
 }
 
@@ -66,16 +80,16 @@ export class ShapeOperationConfig {
     }
 }
 
-// Shape Logic & Utility Functions
+// operation utils
 function _gravityConnected(part1, part2) {
-    if ([NOTHING_CHAR, PIN_CHAR].includes(part1.shape) || [NOTHING_CHAR, PIN_CHAR].includes(part2.shape)) {
+    if ([PART_CODES.NOTHING, PART_CODES.PIN].includes(part1.shape) || [PART_CODES.NOTHING, PART_CODES.PIN].includes(part2.shape)) {
         return false;
     }
     return true;
 }
 
 function _crystalsFused(part1, part2) {
-    return part1.shape === CRYSTAL_CHAR && part2.shape === CRYSTAL_CHAR;
+    return part1.shape === PART_CODES.CRYSTAL && part2.shape === PART_CODES.CRYSTAL;
 }
 
 function _getCorrectedIndex(list, index) {
@@ -89,7 +103,7 @@ function _getCorrectedIndex(list, index) {
 }
 
 function _getConnectedSingleLayer(layer, index, connectedFunc) {
-    if (layer[index].shape === NOTHING_CHAR) {
+    if (layer[index].shape === PART_CODES.NOTHING) {
         return [];
     }
 
@@ -122,7 +136,7 @@ function _getConnectedSingleLayer(layer, index, connectedFunc) {
 }
 
 function _getConnectedMultiLayer(layers, layerIndex, partIndex, connectedFunc) {
-    if (layers[layerIndex][partIndex].shape === NOTHING_CHAR) {
+    if (layers[layerIndex][partIndex].shape === PART_CODES.NOTHING) {
         return [];
     }
 
@@ -159,7 +173,7 @@ function _getConnectedMultiLayer(layers, layerIndex, partIndex, connectedFunc) {
 
 function _breakCrystals(layers, layerIndex, partIndex) {
     for (const [curLayer, curPart] of _getConnectedMultiLayer(layers, layerIndex, partIndex, _crystalsFused)) {
-        layers[curLayer][curPart] = new ShapePart(NOTHING_CHAR, NOTHING_CHAR);
+        layers[curLayer][curPart] = new ShapePart(PART_CODES.NOTHING, PART_CODES.NOTHING);
     }
 }
 
@@ -186,7 +200,7 @@ function _makeLayersFall(layers) {
         const curPart = layers[layerIndex][partIndex];
 
         function inner() {
-            if (layers[layerIndex][partIndex].shape === NOTHING_CHAR) {
+            if (layers[layerIndex][partIndex].shape === PART_CODES.NOTHING) {
                 return false;
             }
 
@@ -240,7 +254,7 @@ function _makeLayersFall(layers) {
         return result;
     }
 
-    // First pass of calculating supported parts
+    // first pass of calculating supported parts
     let supportedPartStates = layers.map(layer => layer.map(() => null));
     for (let layerIndex = 0; layerIndex < layers.length; layerIndex++) {
         for (let partIndex = 0; partIndex < layers[layerIndex].length; partIndex++) {
@@ -248,17 +262,17 @@ function _makeLayersFall(layers) {
         }
     }
 
-    // If a crystal is marked as unsupported it will fall and thus break
+    // if a crystal is marked as unsupported it will fall and thus break
     for (let layerIndex = 0; layerIndex < layers.length; layerIndex++) {
         for (let partIndex = 0; partIndex < layers[layerIndex].length; partIndex++) {
             const part = layers[layerIndex][partIndex];
-            if (part.shape === CRYSTAL_CHAR && !supportedPartStates[layerIndex][partIndex]) {
-                layers[layerIndex][partIndex] = new ShapePart(NOTHING_CHAR, NOTHING_CHAR);
+            if (part.shape === PART_CODES.CRYSTAL && !supportedPartStates[layerIndex][partIndex]) {
+                layers[layerIndex][partIndex] = new ShapePart(PART_CODES.NOTHING, PART_CODES.NOTHING);
             }
         }
     }
 
-    // Second pass of calculating supported parts
+    // second pass of calculating supported parts
     supportedPartStates = layers.map(layer => layer.map(() => null));
     for (let layerIndex = 0; layerIndex < layers.length; layerIndex++) {
         for (let partIndex = 0; partIndex < layers[layerIndex].length; partIndex++) {
@@ -278,7 +292,7 @@ function _makeLayersFall(layers) {
                 if (fallToLayerIndex === 0) break;
                 let fall = true;
                 for (const partIndex of group) {
-                    if (layers[fallToLayerIndex - 1][partIndex].shape !== NOTHING_CHAR) {
+                    if (layers[fallToLayerIndex - 1][partIndex].shape !== PART_CODES.NOTHING) {
                         fall = false;
                         break;
                     }
@@ -288,7 +302,7 @@ function _makeLayersFall(layers) {
 
             for (const partIndex of group) {
                 layers[fallToLayerIndex][partIndex] = layers[layerIndex][partIndex];
-                layers[layerIndex][partIndex] = new ShapePart(NOTHING_CHAR, NOTHING_CHAR);
+                layers[layerIndex][partIndex] = new ShapePart(PART_CODES.NOTHING, PART_CODES.NOTHING);
             }
         }
     }
@@ -302,7 +316,7 @@ function _cleanUpEmptyUpperLayers(layers) {
     }
 
     for (let i = layers.length - 1; i >= 0; i--) {
-        if (layers[i].some(p => p.shape !== NOTHING_CHAR)) {
+        if (layers[i].some(p => p.shape !== PART_CODES.NOTHING)) {
             return layers.slice(0, i + 1);
         }
     }
@@ -338,11 +352,11 @@ function _differentNumPartsUnsupported(func) {
     };
 }
 
-// Shape Operations
+// shape operations
 export function cut(shape, config = new ShapeOperationConfig()) {
     const takeParts = Math.ceil(shape.numParts / 2);
     const cutPoints = [[0, shape.numParts - 1], [shape.numParts - takeParts, shape.numParts - takeParts - 1]];
-    const layers = JSON.parse(JSON.stringify(shape.layers)); // Deep copy
+    const layers = deepCopyLayers(shape.layers);
 
     for (let layerIndex = 0; layerIndex < layers.length; layerIndex++) {
         for (const [start, end] of cutPoints) {
@@ -352,16 +366,17 @@ export function cut(shape, config = new ShapeOperationConfig()) {
         }
     }
 
+    const EMPTY = new ShapePart(PART_CODES.NOTHING, PART_CODES.NOTHING);
     const shapeA = [];
     const shapeB = [];
     for (const layer of layers) {
         shapeA.push([
-            ...Array(shape.numParts - takeParts).fill(new ShapePart(NOTHING_CHAR, NOTHING_CHAR)),
+            ...Array(shape.numParts - takeParts).fill(EMPTY),
             ...layer.slice(-takeParts)
         ]);
         shapeB.push([
             ...layer.slice(0, -takeParts),
-            ...Array(takeParts).fill(new ShapePart(NOTHING_CHAR, NOTHING_CHAR))
+            ...Array(takeParts).fill(EMPTY)
         ]);
     }
 
@@ -408,14 +423,17 @@ export const swapHalves = _differentNumPartsUnsupported(function(shapeA, shapeB,
     const [shapeACut1, shapeACut2] = cut(shapeA, config);
     const [shapeBCut1, shapeBCut2] = cut(shapeB, config);
 
+    const EMPTY_A = Array(shapeA.numParts).fill(new ShapePart(PART_CODES.NOTHING, PART_CODES.NOTHING));
+    const EMPTY_B = Array(shapeB.numParts).fill(new ShapePart(PART_CODES.NOTHING, PART_CODES.NOTHING));
+
     const returnShapeA = [];
     const returnShapeB = [];
 
     for (let i = 0; i < numLayers; i++) {
-        const layerA1 = shapeACut1.layers[i] || Array(shapeA.numParts).fill(new ShapePart(NOTHING_CHAR, NOTHING_CHAR));
-        const layerA2 = shapeACut2.layers[i] || Array(shapeA.numParts).fill(new ShapePart(NOTHING_CHAR, NOTHING_CHAR));
-        const layerB1 = shapeBCut1.layers[i] || Array(shapeB.numParts).fill(new ShapePart(NOTHING_CHAR, NOTHING_CHAR));
-        const layerB2 = shapeBCut2.layers[i] || Array(shapeB.numParts).fill(new ShapePart(NOTHING_CHAR, NOTHING_CHAR));
+        const layerA1 = shapeACut1.layers[i] || EMPTY_A;
+        const layerA2 = shapeACut2.layers[i] || EMPTY_A;
+        const layerB1 = shapeBCut1.layers[i] || EMPTY_B;
+        const layerB2 = shapeBCut2.layers[i] || EMPTY_B;
 
         returnShapeA.push([
             ...layerA2.slice(0, -takeParts),
@@ -435,9 +453,9 @@ export const swapHalves = _differentNumPartsUnsupported(function(shapeA, shapeB,
 
 export const stack = _differentNumPartsUnsupported(function(bottomShape, topShape, config = new ShapeOperationConfig()) {
     const newLayers = [
-        ...bottomShape.layers,
-        Array(bottomShape.numParts).fill(new ShapePart(NOTHING_CHAR, NOTHING_CHAR)),
-        ...topShape.layers
+        ...deepCopyLayers(bottomShape.layers),
+        Array(bottomShape.numParts).fill(new ShapePart(PART_CODES.NOTHING, PART_CODES.NOTHING)),
+        ...deepCopyLayers(topShape.layers)
     ];
     const processed = _cleanUpEmptyUpperLayers(_makeLayersFall(newLayers));
     return [new Shape(processed.slice(0, config.maxShapeLayers))];
@@ -446,21 +464,21 @@ export const stack = _differentNumPartsUnsupported(function(bottomShape, topShap
 export function topPaint(shape, color, config = new ShapeOperationConfig()) {
     const newLayers = shape.layers.slice(0, -1);
     const newTopLayer = shape.layers[shape.layers.length - 1].map(p =>
-        new ShapePart(p.shape, UNPAINTABLE_SHAPES.includes(p.shape) ? p.color : color)
+        new ShapePart(p.shape, UNPAINTABLE_PARTS.includes(p.shape) ? p.color : color)
     );
     newLayers.push(newTopLayer);
     return [new Shape(newLayers)];
 }
 
 export function pushPin(shape, config = new ShapeOperationConfig()) {
-    const layers = JSON.parse(JSON.stringify(shape.layers)); // Deep copy
+    const layers = deepCopyLayers(shape.layers);
     const addedPins = [];
 
     for (const part of layers[0]) {
-        if (part.shape === NOTHING_CHAR) {
-            addedPins.push(new ShapePart(NOTHING_CHAR, NOTHING_CHAR));
+        if (part.shape === PART_CODES.NOTHING) {
+            addedPins.push(new ShapePart(PART_CODES.NOTHING, PART_CODES.NOTHING));
         } else {
-            addedPins.push(new ShapePart(PIN_CHAR, NOTHING_CHAR));
+            addedPins.push(new ShapePart(PART_CODES.PIN, PART_CODES.NOTHING));
         }
     }
 
@@ -485,18 +503,16 @@ export function pushPin(shape, config = new ShapeOperationConfig()) {
 export function genCrystal(shape, color, config = new ShapeOperationConfig()) {
     const newLayers = shape.layers.map(layer =>
         layer.map(p => {
-            // Only replace pins and nothing with crystals
             if (REPLACED_BY_CRYSTAL.includes(p.shape)) {
-                return new ShapePart(CRYSTAL_CHAR, color);
+                return new ShapePart(PART_CODES.CRYSTAL, color);
             }
-            // Keep existing shapes unchanged (don't paint them)
             return new ShapePart(p.shape, p.color);
         })
     );
     return [new Shape(newLayers)];
 }
 
-// Extra functions for Shape Analysis - for Solver
+// shape analysis and solve utils
 export function _getAllRotations(shape, config) {
     const rotations = new Set();
     let current = shape;
@@ -511,49 +527,89 @@ export function _getAllRotations(shape, config) {
 
 export function _extractLayers(shape, mode = 'part', includePins = true, includeColor = true) {
     const numParts = shape.numParts;
-    const groupedLayers = [];
+    const results = [];
 
     shape.layers.forEach((layer) => {
-        const seen = {};
+        if (mode === 'layer') {
+            const newLayer = Array.from({ length: numParts }, () => new ShapePart(PART_CODES.NOTHING, PART_CODES.NOTHING));
 
-        layer.forEach((part, partIndex) => {
-            if (!includePins && (part.shape === PIN_CHAR)) return;
-            if (part.shape === NOTHING_CHAR || part.shape === CRYSTAL_CHAR) return;
+            layer.forEach((part, i) => {
+                if (!includePins && part.shape === PART_CODES.PIN) return;
+                if (part.shape === PART_CODES.NOTHING || part.shape === PART_CODES.CRYSTAL) return;
+
+                const colorToUse = (part.shape === PART_CODES.PIN)
+                    ? part.color
+                    : (includeColor ? part.color : UNCOLORED_CODE);
+
+                newLayer[i] = new ShapePart(part.shape, colorToUse);
+            });
+
+            results.push(newLayer);
+            return;
+        }
+
+        if (mode === 'part') {
+            layer.forEach((part, i) => {
+                if (!includePins && part.shape === PART_CODES.PIN) return;
+                if (part.shape === PART_CODES.NOTHING || part.shape === PART_CODES.CRYSTAL) return;
+
+                const colorToUse = (part.shape === PART_CODES.PIN)
+                    ? part.color
+                    : (includeColor ? part.color : UNCOLORED_CODE);
+
+                const newLayer = Array.from({ length: numParts }, () => new ShapePart(PART_CODES.NOTHING, PART_CODES.NOTHING));
+                newLayer[i] = new ShapePart(part.shape, colorToUse);
+                results.push(newLayer);
+            });
+
+            return;
+        }
+
+        const groups = {};
+
+        layer.forEach((part, i) => {
+            if (!includePins && part.shape === PART_CODES.PIN) return;
+            if (part.shape === PART_CODES.NOTHING || part.shape === PART_CODES.CRYSTAL) return;
 
             let key;
-            if (mode === 'layer') {
-                key = "valid";
-            } else if (mode === 'part') {
-                key = part.shape;
-            } else if (mode === 'color') {
+
+            if (mode === 'color') {
                 key = part.color;
-            } else if (mode === 'part-color') {
+            } else if (mode === 'shape') {
+                key = part.shape;
+            } else if (mode === 'shape-color') {
                 key = `${part.shape}-${part.color}`;
             }
 
-            if (!seen[key]) {
-                seen[key] = [];
-            }
-            seen[key].push({ index: partIndex, shape: part.shape, color: part.color });
+            if (!groups[key]) groups[key] = [];
+            groups[key].push({ index: i, shape: part.shape, color: part.color });
         });
 
-        Object.entries(seen).forEach(([, entries]) => {
-            const newLayer = Array.from({ length: numParts }, () => new ShapePart(NOTHING_CHAR, NOTHING_CHAR));
+        Object.values(groups).forEach(entries => {
+            const newLayer = Array.from({ length: numParts }, () => new ShapePart(PART_CODES.NOTHING, PART_CODES.NOTHING));
+
             entries.forEach(({ index, shape, color }) => {
-                newLayer[index] = new ShapePart(shape, includeColor ? color : 'u');
+                const colorToUse = (shape === PART_CODES.PIN)
+                    ? color
+                    : (includeColor ? color : UNCOLORED_CODE);
+
+                newLayer[index] = new ShapePart(shape, colorToUse);
             });
-            groupedLayers.push(newLayer);
+
+            results.push(newLayer);
         });
     });
 
-    return groupedLayers.map(layer => layer.map(part => part.shape + part.color).join(''));
+    return results.map(layer =>
+        layer.map(p => p.shape + p.color).join('')
+    );
 }
 
 export function _getPaintColors(inputShape, targetShape) {
     const targetColorMap = new Map();
     for (const layer of targetShape.layers) {
         for (const part of layer) {
-            if (!UNPAINTABLE_SHAPES.includes(part.shape) && part.color !== "u") {
+            if (!UNPAINTABLE_PARTS.includes(part.shape) && part.color !== UNCOLORED_CODE) {
                 if (!targetColorMap.has(part.shape)) {
                     targetColorMap.set(part.shape, new Set());
                 }
@@ -566,7 +622,7 @@ export function _getPaintColors(inputShape, targetShape) {
     const topLayer = inputShape.layers[inputShape.layers.length - 1];
     if (topLayer) {
         for (const part of topLayer) {
-            if (!UNPAINTABLE_SHAPES.includes(part.shape)) {
+            if (!UNPAINTABLE_PARTS.includes(part.shape)) {
                 const targetColors = targetColorMap.get(part.shape);
                 if (targetColors) {
                     targetColors.forEach(color => {
@@ -586,23 +642,18 @@ export function _getCrystalColors(shape) {
     const crystalColors = new Set();
     for (const layer of shape.layers) {
         for (const part of layer) {
-            if (part.shape === CRYSTAL_CHAR) crystalColors.add(part.color);
+            if (part.shape === PART_CODES.CRYSTAL) crystalColors.add(part.color);
         }
     }
-    return crystalColors.size > 0 ? Array.from(crystalColors) : ["u"];
+    return crystalColors.size > 0 ? Array.from(crystalColors) : [UNCOLORED_CODE]; 
+    // if no crystals exist in targets, it will use 'u' to generate crystals because some solutions require generating crystals before breaking them
 }
 
 export function _getSimilarity(shape1, shape2, weights = {type: 0.5, color: 0.3, order: 0.2}) {
-    // Part type similarity
     const typeSim = _compareCounts(_getPartTypeCounts(shape1), _getPartTypeCounts(shape2));
-
-    // Part+color similarity
     const colorSim = _compareCounts(_getPartCounts(shape1), _getPartCounts(shape2));
-
-    // Overall similarity
     const orderSim = _comparePartOrder(shape1, shape2);
 
-    // Final score
     return (typeSim * weights.type) +
            (colorSim * weights.color) +
            (orderSim * weights.order);
@@ -641,37 +692,29 @@ function _compareCounts(countsA, countsB) {
         total += Math.max(a, b);
     }
 
-    return total === 0 ? 1 : match / total; // Handles case where both shapes are empty
+    return total === 0 ? 1 : match / total;
 }
 
 function _comparePartOrder(shape1, shape2) {
-    if (shape1.layers.length !== shape2.layers.length) return 0; // Different structure
+    if (shape1.layers.length !== shape2.layers.length) return 0;
 
-    const rotations = [];
     let current = shape1;
-
-    // Generate all rotations
-    for (let i = 0; i < shape1.numParts; i++) {
-        rotations.push(current);
-        current = rotate90CW(current)[0];
-    }
-
     let bestMatchRatio = 0;
 
-    for (const rotatedShape of rotations) {
+    for (let i = 0; i < shape1.numParts; i++) {
         let totalParts = 0;
         let correctParts = 0;
 
         for (let layerIndex = 0; layerIndex < shape2.layers.length; layerIndex++) {
-            const layerA = rotatedShape.layers[layerIndex];
+            const layerA = current.layers[layerIndex];
             const layerB = shape2.layers[layerIndex];
 
             const len = Math.min(layerA.length, layerB.length);
             totalParts += len;
 
-            for (let i = 0; i < len; i++) {
-                if (layerA[i].shape === layerB[i].shape) {
-                    correctParts += 1;
+            for (let j = 0; j < len; j++) {
+                if (layerA[j].shape === layerB[j].shape) {
+                    correctParts++;
                 }
             }
         }
@@ -680,8 +723,11 @@ function _comparePartOrder(shape1, shape2) {
             const matchRatio = correctParts / totalParts;
             if (matchRatio > bestMatchRatio) {
                 bestMatchRatio = matchRatio;
+                if (bestMatchRatio === 1) break;
             }
         }
+
+        current = rotate90CW(current)[0];
     }
 
     return bestMatchRatio;
