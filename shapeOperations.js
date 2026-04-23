@@ -525,7 +525,7 @@ export function _getAllRotations(shape, config) {
     return rotations;
 }
 
-export function _extractLayers(shape, mode = 'part', includePins = true, includeColor = true) {
+export function _extractLayers(shape, mode = 'part', includePins = true, includeColor = true, includeCrystals = true) {
     const numParts = shape.numParts;
     const results = [];
 
@@ -535,9 +535,10 @@ export function _extractLayers(shape, mode = 'part', includePins = true, include
 
             layer.forEach((part, i) => {
                 if (!includePins && part.shape === PART_CODES.PIN) return;
-                if (part.shape === PART_CODES.NOTHING || part.shape === PART_CODES.CRYSTAL) return;
+                if (!includeCrystals && part.shape === PART_CODES.CRYSTAL) return;
+                if (part.shape === PART_CODES.NOTHING) return;
 
-                const colorToUse = (part.shape === PART_CODES.PIN)
+                const colorToUse = (UNPAINTABLE_PARTS.includes(part.shape))
                     ? part.color
                     : (includeColor ? part.color : UNCOLORED_CODE);
 
@@ -551,9 +552,10 @@ export function _extractLayers(shape, mode = 'part', includePins = true, include
         if (mode === 'part') {
             layer.forEach((part, i) => {
                 if (!includePins && part.shape === PART_CODES.PIN) return;
-                if (part.shape === PART_CODES.NOTHING || part.shape === PART_CODES.CRYSTAL) return;
+                if (!includeCrystals && part.shape === PART_CODES.CRYSTAL) return;
+                if (part.shape === PART_CODES.NOTHING) return;
 
-                const colorToUse = (part.shape === PART_CODES.PIN)
+                const colorToUse = (UNPAINTABLE_PARTS.includes(part.shape))
                     ? part.color
                     : (includeColor ? part.color : UNCOLORED_CODE);
 
@@ -569,7 +571,8 @@ export function _extractLayers(shape, mode = 'part', includePins = true, include
 
         layer.forEach((part, i) => {
             if (!includePins && part.shape === PART_CODES.PIN) return;
-            if (part.shape === PART_CODES.NOTHING || part.shape === PART_CODES.CRYSTAL) return;
+            if (!includeCrystals && part.shape === PART_CODES.CRYSTAL) return;
+            if (part.shape === PART_CODES.NOTHING) return;
 
             let key;
 
@@ -589,7 +592,7 @@ export function _extractLayers(shape, mode = 'part', includePins = true, include
             const newLayer = Array.from({ length: numParts }, () => new ShapePart(PART_CODES.NOTHING, PART_CODES.NOTHING));
 
             entries.forEach(({ index, shape, color }) => {
-                const colorToUse = (shape === PART_CODES.PIN)
+                const colorToUse = (UNPAINTABLE_PARTS.includes(shape))
                     ? color
                     : (includeColor ? color : UNCOLORED_CODE);
 

@@ -331,13 +331,14 @@ function setupExtractModal() {
 
         const mode         = qs('input[name="extract-mode"]:checked')?.value ?? 'color';
         const includePins  = byId('include-pins')?.checked  ?? false;
+        const includeCrystals = byId('include-crystals')?.checked ?? false;
         const includeColor = byId('include-color')?.checked ?? false;
         const extracted    = [];
 
         for (const code of state.targetShapeCodes) {
             if (!showValidationErrors(code, 'target shape')) return;
             try {
-                _extractLayers(Shape.fromShapeCode(code), mode, includePins, includeColor)
+                _extractLayers(Shape.fromShapeCode(code), mode, includePins, includeColor, includeCrystals)
                     .forEach((c) => extracted.push(c));
             } catch (err) {
                 alert(`Failed to extract shapes from "${code}": ${err.message}`);
