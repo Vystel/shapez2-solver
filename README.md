@@ -11,6 +11,51 @@ A web-based tool for the game [Shapez 2](https://shapez2.com/) that tries to fin
 - Has several settings to control the solver to the user's liking.
 - User-friendly interface.
 
+## Development
+
+The app now uses Vite for local development and bundling:
+
+```bash
+npm install
+npm run dev
+```
+
+Then open the local URL printed by Vite, normally `http://127.0.0.1:1420`.
+
+## macOS Desktop App
+
+This repo also includes a [Tauri](https://tauri.app/) shell so the existing frontend can be packaged as a native macOS app without rewriting the solver UI.
+
+```bash
+npm install
+npm run tauri:dev
+```
+
+To produce a distributable `.app` bundle on macOS:
+
+```bash
+npm run tauri:build
+```
+
+The built application is written to:
+
+```text
+src-tauri/target/release/bundle/macos/Shapez 2 Solver.app
+```
+
+Building the desktop app requires a working Rust toolchain in addition to Node.js.
+
+## GitHub Releases
+
+GitHub Actions now publishes release assets automatically when you push a version tag that starts with `v`.
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+That workflow builds both Apple Silicon and Intel macOS bundles and uploads the generated `.app` and `.dmg` files to the matching GitHub Release.
+
 ## Credits & Sources
 
 - Shape operation logic ported to JS from [Loupau38's Shapez 2 Library](https://pypi.org/project/shapez2/).

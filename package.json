@@ -1,0 +1,24 @@
+{
+  "name": "shapez2-solver",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test tests/*.test.mjs",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build --bundles app"
+  },
+  "dependencies": {
+    "3d-force-graph": "^1.80.0",
+    "cytoscape": "^3.33.2",
+    "cytoscape-elk": "^2.3.0",
+    "three": "^0.184.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.10.1",
+    "vite": "^8.0.10"
+  }
+}

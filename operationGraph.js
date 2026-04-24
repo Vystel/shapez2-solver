@@ -1,6 +1,12 @@
+import ForceGraph3D from '3d-force-graph';
+import cytoscape from 'cytoscape';
+import cytoscapeElk from 'cytoscape-elk';
+import * as THREE from 'three';
 import { createShapeCanvas } from './shapeRendering.js';
 import { getCurrentColorMode, getMixColor } from './colorMode.js';
 import { COLOR_CODES, COLOR_MODES } from './shapeConstants.js';
+
+cytoscape.use(cytoscapeElk);
 
 // constants 
 
@@ -8,6 +14,19 @@ const DEFAULT_DIRECTION = 'LR';
 const MIX_GRAPH_COLOR_CODES   = Object.values(COLOR_CODES).map((c) => c.toUpperCase());
 const ELK_DIRECTION_BY_RANKDIR = Object.freeze({
     LR: 'RIGHT', RL: 'LEFT', TB: 'DOWN', BT: 'UP',
+});
+const OPERATION_IMAGE_URLS = Object.freeze({
+    'Rotator CW': new URL('./images/operations/rotator-cw.png', import.meta.url).href,
+    'Rotator CCW': new URL('./images/operations/rotator-ccw.png', import.meta.url).href,
+    'Rotator 180': new URL('./images/operations/rotator-180.png', import.meta.url).href,
+    'Half Destroyer': new URL('./images/operations/half-destroyer.png', import.meta.url).href,
+    Cutter: new URL('./images/operations/cutter.png', import.meta.url).href,
+    Swapper: new URL('./images/operations/swapper.png', import.meta.url).href,
+    Stacker: new URL('./images/operations/stacker.png', import.meta.url).href,
+    Painter: new URL('./images/operations/painter.png', import.meta.url).href,
+    'Pin Pusher': new URL('./images/operations/pin-pusher.png', import.meta.url).href,
+    'Crystal Generator': new URL('./images/operations/crystal-generator.png', import.meta.url).href,
+    'Color Mixer': new URL('./images/operations/color-mixer.png', import.meta.url).href,
 });
 
 // state
@@ -148,7 +167,7 @@ const CYTO_BASE_STYLES = [
 
 // solver graph
 function operationImagePath(name) {
-    return `images/operations/${name.toLowerCase().replace(/\s+/g, '-')}.png`;
+    return OPERATION_IMAGE_URLS[name] ?? '';
 }
 
 function createShapeNode(id, shapeCode, size = 240) {
@@ -338,7 +357,7 @@ const MIX_CYTO_STYLES = [
             'font-size':        '10px',
             'text-outline-width':  1,
             'text-outline-color':  '#333',
-            'background-image': 'images/operations/color-mixer.png',
+            'background-image': OPERATION_IMAGE_URLS['Color Mixer'],
             'background-fit':   'cover',
             'background-opacity': 0,
             shape:              'rectangle',
@@ -622,14 +641,6 @@ export function renderSpaceGraph(graph) {
 
     explorerState.graphCache = buildExplorerNeighbors(graph);
 
-    const forceGraphFactory = globalThis.ForceGraph3D;
-    if (typeof forceGraphFactory !== 'function') {
-        console.error('3D graph dependency is unavailable. Expected ForceGraph3D on window/globalThis.');
-        return null;
-    }
-
-    const hasThree = typeof globalThis.THREE !== 'undefined';
-
     const nodes = [
         ...graph.shapes.map((s)  => ({ id: s.id,  kind: 'shape', label: s.code,       image: createShapeCanvas(s.code, 240).toDataURL() })),
         ...graph.ops.map((op)    => ({ id: op.id, kind: 'op',    label: op.type,      image: operationImagePath(op.type) })),
@@ -640,7 +651,7 @@ export function renderSpaceGraph(graph) {
         kind: target.startsWith('op-') ? 'to-op' : source.startsWith('op-') ? 'from-op' : '',
     }));
 
-    graph3dInstance = forceGraphFactory()(container)
+    graph3dInstance = ForceGraph3D()(container)
         .graphData({ nodes, links })
         .showNavInfo(false)
         .forceEngine('d3')
@@ -655,17 +666,11 @@ export function renderSpaceGraph(graph) {
         .linkDirectionalArrowRelPos(1)
         .nodeLabel((node) => node.label);
 
-    if (hasThree) {
-        graph3dInstance.nodeThreeObject((node) => {
-            const group = new THREE.Group();
-            group.add(createSprite(node.image, node.kind === 'shape' ? 15 : 12));
-            return group;
-        });
-    } else {
-        graph3dInstance
-            .nodeColor((node) => node.kind === 'op' ? '#FC9A19' : '#6FB8FF')
-            .nodeVal((node) => node.kind === 'op' ? 4 : 8);
-    }
+    graph3dInstance.nodeThreeObject((node) => {
+        const group = new THREE.Group();
+        group.add(createSprite(node.image, node.kind === 'shape' ? 15 : 12));
+        return group;
+    });
 
     const controls = graph3dInstance.controls?.();
     if (controls) {
