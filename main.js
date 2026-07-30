@@ -169,7 +169,6 @@ function readSolverOptions() {
         maxStatesPerLevel:  readInt('max-states-per-level', 7500),
         preventWaste:       byId('prevent-waste')?.checked           ?? false,
         orientationSensitive: byId('orientation-sensitive')?.checked ?? false,
-        allowSplitting:     byId('allow-splitting')?.checked         ?? false,
         cleanPainting:      byId('clean-painting')?.checked          ?? false,
     };
 }

@@ -1,6 +1,33 @@
 # Shapez 2 Solver
 
-A web-based tool for the game [Shapez 2](https://shapez2.com/) that tries to find the most efficient solutions for creating a target shape from given starting shapes using a set of allowed operations.
+A web-based tool for the game [Shapez 2](https://shapez2.com/) that helps players plan factory builds.
+
+## Solving Shapes
+ 
+1. Add one or more **Output** shapes (what you want to produce).
+2. Optionally add or adjust **Input** shapes (what you're starting with). Four uncolored basic shapes are pre-loaded by default.
+3. Enable or disable **Operations** by clicking their icons.
+4. Adjust **Settings** as needed. Configure which machines are available, set layer limits, and tune the search to balance speed against thoroughness.
+5. Click **Solve**. This will try to find an operation sequence that transforms your input shapes into your target shapes. 
+The result appears as an operation graph in the main panel. Click **Explore** instead to browse all reachable shapes without a specific target, showing it in a 3D graph. Not really useful, but can generate some really cool looking graphs!
+ 
+**Solver options**
+| Option | Description |
+|--------|-------------|
+| Max Layers | Maximum number of layers allowed in any intermediate shape. Defaults to 4 (the standard game limit). |
+| Max States Per Level | Caps the BFS frontier size. Lower = faster but may miss solutions. Higher = slower but more thorough. |
+| Prevent Waste | Only accepts solutions where all remaining shapes are an output shape. |
+| Orientation-Sensitive | Doesn't accept rotated variants of output shapes. |
+| Clean Painting | Restricts painting to single-layer, fully unpainted shapes only. |
+
+---
+ 
+## Solving Colors
+ 
+Switch to the **Mixing** tab in the sidebar.
+
+- **Optimized mode** (default) — enter only the *Want* counts; the solver searches for the minimum number of base-color inputs (R/G/B) required to reach the target. Click **Solve** to show all solutions listed by mixer count. Clicking a solution renders its mixing graph.
+- **Manual mode** — enter the colors you already have under *Have* and the colors you need under *Want*.
 
 ## Features
 
@@ -14,7 +41,7 @@ A web-based tool for the game [Shapez 2](https://shapez2.com/) that tries to fin
 ## Credits & Sources
 
 - Shape operation logic ported to JS from [Loupau38's Shapez 2 Library](https://pypi.org/project/shapez2/).
-- Shape rendering code adapted from [Loupau38's Shape Viewer](https://github.com/Loupau38/loupau38.github.io/blob/main/assets/scripts/shapeViewer.js).
+- Shape rendering code built upon from [Loupau38's Shape Viewer](https://github.com/Loupau38/loupau38.github.io/blob/main/assets/scripts/shapeViewer.js).
 - Uses [Cytoscape.js](https://js.cytoscape.org/) for graph visualization.
 
 ## Examples
