@@ -295,6 +295,7 @@ function setupExplorerPanel() {
                     enabledOperations:  collectEnabledOperations(),
                     depthLimit:         readInt('depth-limit-input', 999),
                     maxLayers:          readInt('max-layers', 4),
+                    skipTwoInputOps:    byId('skip-two-input-ops')?.checked ?? false,
                 },
             },
             onResult(result) {

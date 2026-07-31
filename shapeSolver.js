@@ -51,9 +51,15 @@ self.onmessage = async function (e) {
         self.postMessage({ type: 'result', result });
     } else if (action === 'explore') {
         cancelled = false;
-        const { startingShapeCodes, enabledOperations, depthLimit, maxLayers } = data;
+        const { startingShapeCodes, enabledOperations, depthLimit, maxLayers, skipTwoInputOps } = data;
         try {
-            const graph = await shapeExplorer(startingShapeCodes, enabledOperations, depthLimit || 999, maxLayers || 4);
+            const graph = await shapeExplorer(
+                startingShapeCodes,
+                enabledOperations,
+                depthLimit || 999,
+                maxLayers || 4,
+                skipTwoInputOps
+            );
             if (!cancelled) {
                 self.postMessage({ type: 'result', result: graph });
             }
@@ -404,7 +410,7 @@ async function shapeSolver(targetShapeCodes, startingShapeCodes, enabledOperatio
     return null;
 }
 
-async function shapeExplorer(startingShapeCodes, enabledOperations, depthLimit, maxLayers) {
+async function shapeExplorer(startingShapeCodes, enabledOperations, depthLimit, maxLayers, skipTwoInputOps = false) {
     const config = new ShapeOperationConfig(maxLayers);
 
     let nextShapeId = 0;
@@ -529,10 +535,14 @@ async function shapeExplorer(startingShapeCodes, enabledOperations, depthLimit, 
                             continue;
                         }
 
-                        const opId = `op-${nextOpId++}`;
-                        opsList.push({ id: opId, type: opName, params: {} });
-                        edges.push({ source: `shape-${id1}`, target: opId });
-                        edges.push({ source: `shape-${id2}`, target: opId });
+                        const recordOp = !skipTwoInputOps;
+                        let opId = null;
+                        if (recordOp) {
+                            opId = `op-${nextOpId++}`;
+                            opsList.push({ id: opId, type: opName, params: {} });
+                            edges.push({ source: `shape-${id1}`, target: opId });
+                            edges.push({ source: `shape-${id2}`, target: opId });
+                        }
 
                         for (const oc of outputCodes) {
                             const { id: outId, added } = addShapeIfNew(oc);
@@ -541,7 +551,9 @@ async function shapeExplorer(startingShapeCodes, enabledOperations, depthLimit, 
                                 availableIds.add(outId);
                                 newlyDiscovered.add(outId);
                             }
-                            edges.push({ source: opId, target: `shape-${outId}` });
+                            if (recordOp) {
+                                edges.push({ source: opId, target: `shape-${outId}` });
+                            }
                         }
                     }
                 }

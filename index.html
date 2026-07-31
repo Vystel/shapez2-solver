@@ -167,6 +167,11 @@
                 <input type="number" placeholder="Infinity" class="field-input" id="depth-limit-input">
                 <p class="option-desc">Explore all shapes reachable within this many operation steps.</p>
               </div>
+              <div class="toggle-row">
+                <span class="toggle-name">Skip 2-Input Op Nodes</span>
+                <label class="toggle"><input type="checkbox" id="skip-two-input-ops"><span class="toggle-track"></span></label>
+              </div>
+              <p class="option-desc">Still use Stacker/Swapper to discover shapes, but do not create those operation nodes in the graph.</p>
             </div>
           </div>
         </div>
